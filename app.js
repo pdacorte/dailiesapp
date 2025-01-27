@@ -98,11 +98,18 @@ function setupEventListeners() {
 
 // Helper Functions
 function formatDate(date) {
-  return new Date(date).toISOString().split("T")[0]
+  const d = new Date(date)
+  return d.toISOString().split('T')[0]  // YYYY-MM-DD
 }
 
 function getTodayDate() {
-  return formatDate(new Date())
+  // Get the local date string for the user's timezone
+  const now = new Date()
+  const offset = now.getTimezoneOffset()
+  const localDate = new Date(now.getTime() - (offset * 60 * 1000))
+  const result = localDate.toISOString().split('T')[0]
+  console.log('getTodayDate returning:', result)
+  return result
 }
 
 // Add this function to get a random quote
@@ -173,7 +180,9 @@ function completeTask(taskId) {
   taskStore.get(taskId).onsuccess = (event) => {
     const task = event.target.result
     task.status = true
-    task.endDate = getTodayDate()
+    const today = getTodayDate()
+    console.log('Setting endDate to:', today)
+    task.endDate = today
 
     taskStore.put(task).onsuccess = () => {
       // If task is Non-Negotiable, create next day's task
@@ -326,17 +335,25 @@ function updateStreak() {
 
   let streak = 0
   const currentDate = new Date()
+  const offset = currentDate.getTimezoneOffset()
 
   function checkDate(date) {
-    const dateStr = formatDate(date)
+    // Adjust for timezone
+    const localDate = new Date(date.getTime() - (offset * 60 * 1000))
+    const dateStr = formatDate(localDate)
+    console.log('Checking streak for date:', dateStr) // Debug log
+
     const request = index.count(IDBKeyRange.only(dateStr))
 
     request.onsuccess = () => {
+      console.log('Tasks completed on', dateStr + ':', request.result) // Debug log
       if (request.result > 0) {
         streak++
-        currentDate.setDate(currentDate.getDate() - 1)
-        checkDate(currentDate)
+        // Move to previous day using the same timezone offset
+        const prevDate = new Date(date.getTime() - 24 * 60 * 60 * 1000)
+        checkDate(prevDate)
       } else {
+        console.log('Final streak count:', streak) // Debug log
         document.getElementById("streak-count").textContent = `${streak} days`
       }
     }
@@ -419,12 +436,15 @@ function updateLast7DaysOverview() {
   const taskStore = transaction.objectStore("tasks")
   const index = taskStore.index("endDate")
 
-  // Get last 7 days
+  // Get last 7 days including today
   const dates = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date()
-    d.setDate(d.getDate() - i)
-    return formatDate(d)
+    const now = new Date()
+    const offset = now.getTimezoneOffset()
+    const localDate = new Date(now.getTime() - (offset * 60 * 1000) - (i * 24 * 60 * 60 * 1000))
+    return formatDate(localDate)
   }).reverse()
+
+  console.log('7 day overview dates:', dates) // Debug log
 
   Promise.all(
     dates.map(
@@ -439,6 +459,7 @@ function updateLast7DaysOverview() {
         }),
     ),
   ).then((results) => {
+    console.log('7 day overview results:', results) // Debug log
     const overviewElement = document.getElementById("seven-day-overview")
     overviewElement.innerHTML = results
       .map(
