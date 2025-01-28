@@ -1,56 +1,107 @@
-// Initialize IndexedDB
+// Initialize database connection and global variables
 let db
 const dbName = "dailiesDB"
 const dbVersion = 1
-
-// Add this at the top of the file with other global variables
 let currentChart = null
+let expectedTasksPerDay = 1
 
-// Add this near the top of the file with other constants
+// Array of motivational quotes to display
 const motivationalQuotes = [
   {
-    text: "The only way to do great work is to love what you do.",
-    author: "Steve Jobs",
+    text: "It's okay to be wrong when you iterate quickly.",
+    author: "Altman",
   },
   {
-    text: "Success is not final, failure is not fatal: it is the courage to continue that counts.",
-    author: "Winston Churchill",
+    text: "Execution is the best anxiety reliever - Adopt a do it now mentality.",
+    author: "X",
   },
   {
-    text: "The future depends on what you do today.",
-    author: "Mahatma Gandhi",
+    text: "The distance between dreams and reality is called discipline.",
+    author: "Paulo Coelho",
   },
   {
-    text: "Don't watch the clock; do what it does. Keep going.",
-    author: "Sam Levenson",
+    text: "The secret of genius is to carry the spirit of the child into old age, which means never losing your enthusiasm.",
+    author: "Aldous Huxley",
   },
   {
-    text: "The only limit to our realization of tomorrow will be our doubts of today.",
-    author: "Franklin D. Roosevelt",
+    text: "Routine, in an intelligent man, is a sign of ambition.",
+    author: "W. H. Auden",
   },
   {
     text: "It does not matter how slowly you go as long as you do not stop.",
     author: "Confucius",
   },
   {
-    text: "Everything you've ever wanted is sitting on the other side of fear.",
-    author: "George Addair",
+    text: "Discipline is choosing between what  you want now and what you want most.",
+    author: "Abraham Lincoln",
   },
   {
     text: "The way to get started is to quit talking and begin doing.",
     author: "Walt Disney",
   },
   {
-    text: "Whether you think you can or you think you can't, you're right.",
-    author: "Henry Ford",
+    text: "He who cannot obey himself will be commanded. That is the nature of living creatures.",
+    author: "Nietzsche",
   },
   {
-    text: "The only person you are destined to become is the person you decide to be.",
-    author: "Ralph Waldo Emerson",
+    text: "You win by doing the boring things longer than everyone else.",
+    author: "",
+  },
+  {
+    text: "Our greatest weariness comes from work not done.",
+    author: "Eric Hoffer",
+  },
+  {
+    text: "The most regretful people on earth are those who felt the call to creative work, who felt their own creative power restive and uprising, and gave it neither power nor time.",
+    author: "Mary Oliver",
+  },
+  {
+    text: "Don't plant your bad days. They grow into weeks... months. Before you know it you got yourself a bad year. Choke those little bad days.",
+    author: "Tom Waits",
+  },
+  {
+    text: "Complaining is not a strategy. You have to work with the world as you find it, not as you would have it be.",
+    author: "Bezos",
+  },
+  {
+    text: "An expert is a man who has made all the mistakes which can be made in a very narrow field.",
+    author: "Niels Bohr",
+  },
+  {
+    text: "Act in accordance with your values, not your feelings. Motivation is a myth.",
+    author: "Hormozi",
+  },
+  {
+    text: "Excellence is never an accident. It is always the result of high intention, sincere effort, and intelligent execution.",
+    author: "Aristotle",
+  },
+  {
+    text: "Ever tried. Ever failed. No matter. Try again. Fail again. Fail better.",
+    author: "Samuel Beckett",
+  },
+  {
+    text: "To go wrong in one's own way is better than to go right in someone else's.",
+    author: "Fyodor Dostoevsky",
+  },
+  {
+    text: "Difficulties strengthen the mind as labor does the body.",
+    author: "Seneca",
+  },
+  {
+    text: "Devote the rest of your life to making progress.",
+    author: "Epictetus",
+  },
+  {
+    text: "Don't explain your philosophy. Embody it.",
+    author: "Epictetus",
+  },
+  {
+    text: "There is no greatness where there is not simplicity, goodness, and truth.",
+    author: "Leo Tolstoy",
   },
 ]
 
-// Wait for DOM to be ready
+// Set up initial theme and database when page loads
 document.addEventListener("DOMContentLoaded", () => {
   const savedTheme = localStorage.getItem("theme") || "light"
   document.documentElement.classList.toggle("dark", savedTheme === "dark")
@@ -58,6 +109,7 @@ document.addEventListener("DOMContentLoaded", () => {
   setupEventListeners()
 })
 
+// Initialize IndexedDB database and create object stores if needed
 function initializeDB() {
   console.log("Initializing database...")
   const request = indexedDB.open(dbName, dbVersion)
@@ -87,6 +139,7 @@ function initializeDB() {
   }
 }
 
+// Set up event listeners for form submission, theme toggle, and expected tasks
 function setupEventListeners() {
   document.getElementById("add-task-form").addEventListener("submit", (e) => {
     e.preventDefault()
@@ -94,14 +147,21 @@ function setupEventListeners() {
   })
 
   document.getElementById("theme-toggle").addEventListener("click", toggleTheme)
+  
+  // Add listener for expected tasks input
+  document.getElementById("expected-tasks").addEventListener("change", (e) => {
+    expectedTasksPerDay = parseInt(e.target.value) || 1;
+    updateChart();
+  });
 }
 
-// Helper Functions
+// Format a date object to YYYY-MM-DD string
 function formatDate(date) {
   const d = new Date(date)
   return d.toISOString().split('T')[0]  // YYYY-MM-DD
 }
 
+// Get today's date in user's timezone as YYYY-MM-DD string
 function getTodayDate() {
   // Get the local date string for the user's timezone
   const now = new Date()
@@ -112,13 +172,13 @@ function getTodayDate() {
   return result
 }
 
-// Add this function to get a random quote
+// Get a random quote from the motivationalQuotes array
 function getRandomQuote() {
   const randomIndex = Math.floor(Math.random() * motivationalQuotes.length)
   return motivationalQuotes[randomIndex]
 }
 
-// Task Management
+// Add a new task to the database
 function addTask() {
   if (!db) {
     console.error("Database not initialized")
@@ -173,6 +233,7 @@ function addTask() {
   }
 }
 
+// Mark a task as complete and create next day's task if Non-Negotiable
 function completeTask(taskId) {
   const transaction = db.transaction(["tasks"], "readwrite")
   const taskStore = transaction.objectStore("tasks")
@@ -201,7 +262,7 @@ function completeTask(taskId) {
   }
 }
 
-// Display Functions
+// Update all display elements on the page
 function updateDisplay() {
   updateTodayInfo()
   updateOngoingTasks()
@@ -211,6 +272,7 @@ function updateDisplay() {
   updateChart()
 }
 
+// Update the today's info section with date and quote
 function updateTodayInfo() {
   const today = new Date()
   const todayInfo = document.getElementById("today-info")
@@ -236,6 +298,7 @@ function updateTodayInfo() {
   }
 }
 
+// Update the list of ongoing (uncompleted) tasks
 function updateOngoingTasks() {
   if (!db) {
     console.error("Database not initialized")
@@ -290,6 +353,7 @@ function updateOngoingTasks() {
   }
 }
 
+// Update the list of recently completed tasks
 function updateCompletedTasks() {
   const completedList = document.getElementById("completed-tasks")
   completedList.innerHTML = ""
@@ -328,6 +392,7 @@ function updateCompletedTasks() {
   }
 }
 
+// Calculate and update the current streak count
 function updateStreak() {
   const transaction = db.transaction(["tasks"], "readonly")
   const taskStore = transaction.objectStore("tasks")
@@ -362,6 +427,7 @@ function updateStreak() {
   checkDate(currentDate)
 }
 
+// Update the progress chart comparing expected vs actual tasks
 function updateChart() {
   const ctx = document.getElementById("progress-chart").getContext("2d")
 
@@ -390,8 +456,7 @@ function updateChart() {
         }),
     ),
   ).then((counts) => {
-    const expectedDaily = 1 // Default expected tasks per day
-    const expected = dates.map((_, i) => expectedDaily * (i + 1))
+    const expected = dates.map((_, i) => expectedTasksPerDay * (i + 1))
     const actual = counts.reduce((acc, curr, i) => {
       const prev = i > 0 ? acc[i - 1] : 0
       acc.push(prev + curr)
@@ -431,6 +496,7 @@ function updateChart() {
   })
 }
 
+// Update the overview of completed tasks for the last 7 days
 function updateLast7DaysOverview() {
   const transaction = db.transaction(["tasks"], "readonly")
   const taskStore = transaction.objectStore("tasks")
@@ -474,6 +540,7 @@ function updateLast7DaysOverview() {
   })
 }
 
+// Reset the database by deleting and reinitializing it
 function resetDatabase() {
   if (!confirm("Are you sure you want to reset the database? This will delete all tasks and cannot be undone.")) {
     return
@@ -502,6 +569,7 @@ function resetDatabase() {
   }
 }
 
+// Toggle between light and dark theme
 function toggleTheme() {
   document.documentElement.classList.toggle("dark")
   const isDark = document.documentElement.classList.contains("dark")

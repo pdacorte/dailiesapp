@@ -1,0 +1,24 @@
+# Ignore node_modules folder
+node_modules/
+dist/output.css
+
+# Ignore build output
+dist/
+build/
+
+# Ignore environment variables
+__pycache__/
+*.pyc
+venv/
+.env
+
+# Ignore OS-specific files
+.DS_Store
+Thumbs.db
+
+# Ignore logs
+*.log
+
+# Ignore IDE-specific files
+.vscode/
+.idea/

@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Modern Dailies App</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="output.css" rel="stylesheet">
+    
     <script>
         tailwind.config = {
             darkMode: 'class',
@@ -31,7 +32,7 @@
                 <h2 class="text-2xl font-semibold mb-4">Ongoing Tasks</h2>
                 <div id="ongoing-tasks" class="space-y-4 mb-6"></div>
 
-                <form id="add-task-form" class="space-y-4">
+                <form id="add-task-form" class="space-y-4 mb-6">
                     <h3 class="text-xl font-semibold">Add New Task</h3>
                     <input type="text" id="task-input" placeholder="Enter task..." required
                            class="w-full px-4 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
@@ -44,6 +45,15 @@
                         Add Task
                     </button>
                 </form>
+
+                <div class="border-t pt-6">
+                    <h3 class="text-xl font-semibold mb-4">Chart Settings</h3>
+                    <div class="flex items-center space-x-2">
+                        <label for="expected-tasks" class="text-sm">Expected Daily Tasks:</label>
+                        <input type="number" id="expected-tasks" min="1" value="1" 
+                               class="w-20 px-2 py-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
             </div>
 
             <div class="space-y-8">
