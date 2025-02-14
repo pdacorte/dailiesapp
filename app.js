@@ -332,6 +332,9 @@ function updateOngoingTasks() {
         return
       }
 
+      const isDarkMode = document.documentElement.classList.contains('dark');
+      const crossIcon = isDarkMode ? './icons/whitecross.svg' : './icons/cross.svg';
+
       tasks.forEach((task) => {
         const taskElement = document.createElement("div")
         taskElement.className = "flex items-center space-x-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg"
@@ -339,10 +342,8 @@ function updateOngoingTasks() {
                     <input type="checkbox" onchange="completeTask(${task.id})" class="form-checkbox h-5 w-5 text-blue-600">
                     <span class="flex-grow">${task.title}</span>
                     <span class="text-sm text-gray-500 dark:text-gray-400">${task.type}</span>
-                    <button onclick="deleteTask(${task.id})" class="text-red-500 hover:text-red-700 ml-2" title="Delete task">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
-                        </svg>
+                    <button onclick="deleteTask(${task.id})" class="bg-blue-500 hover:bg-blue-600 rounded p-1.5 ml-2" title="Delete task">
+                        <img src="${crossIcon}" class="h-3 w-3 scale-150" alt="Delete">
                     </button>
                 `
         taskList.appendChild(taskElement)
@@ -579,6 +580,7 @@ function toggleTheme() {
   document.documentElement.classList.toggle("dark")
   const isDark = document.documentElement.classList.contains("dark")
   localStorage.setItem("theme", isDark ? "dark" : "light")
+  updateOngoingTasks()
 }
 
 // Add this new function to handle task deletion
