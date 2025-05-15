@@ -99,6 +99,10 @@ const motivationalQuotes = [
     text: "There is no greatness where there is not simplicity, goodness, and truth.",
     author: "Leo Tolstoy",
   },
+  {
+    text: "I have not failed. I've just found 10,000 ways that won't work.",
+    author: "Thomas Edison",
+  },
 ]
 
 // Set up initial theme and database when page loads
