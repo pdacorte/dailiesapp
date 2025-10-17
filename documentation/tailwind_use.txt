@@ -1,0 +1,9 @@
+Tailwind CSS 
+
+npm install -D tailwindcss
+npx tailwindcss init
+
+npm run dev 
+npm run build
+
+Big focus on the 
