@@ -1,9 +1,16 @@
 // Initialize database connection and global variables
 let db
 const dbName = "dailiesDB"
-const dbVersion = 1
+const dbVersion = 2
 let currentChart = null
+let currentPieChart = null
 let expectedTasksPerDay = 1
+
+// Time tracker variables
+let timerInterval = null
+let timerStartTime = null
+let isTimerRunning = false
+let currentTaskName = ""
 
 // Array of motivational quotes to display
 const motivationalQuotes = [
@@ -109,6 +116,7 @@ const motivationalQuotes = [
 document.addEventListener("DOMContentLoaded", () => {
   const savedTheme = localStorage.getItem("theme") || "light"
   document.documentElement.classList.toggle("dark", savedTheme === "dark")
+  initializeSidebar()
   initializeDB()
   setupEventListeners()
 })
@@ -134,13 +142,42 @@ function initializeDB() {
       taskStore.createIndex("endDate", "endDate")
       console.log("Created tasks store and indexes")
     }
+
+    // Create time tracking object store
+    if (!db.objectStoreNames.contains("timeTracking")) {
+      const timeStore = db.createObjectStore("timeTracking", { keyPath: "id", autoIncrement: true })
+      timeStore.createIndex("taskName", "taskName")
+      timeStore.createIndex("timestamp", "timestamp")
+      console.log("Created timeTracking store and indexes")
+    }
   }
 
   request.onsuccess = (event) => {
     console.log("Database initialized successfully")
     db = event.target.result
     updateDisplay()
+    updateTimeTrackerDisplay()
   }
+}
+
+// Initialize sidebar state
+function initializeSidebar() {
+  const sidebar = document.getElementById("sidebar");
+  const isCollapsed = localStorage.getItem("sidebarCollapsed") === "true";
+  
+  if (isCollapsed) {
+    sidebar.classList.add("collapsed");
+  }
+}
+
+// Toggle sidebar collapse state
+function toggleSidebar() {
+  const sidebar = document.getElementById("sidebar");
+  sidebar.classList.toggle("collapsed");
+  
+  // Save state to localStorage
+  const isCollapsed = sidebar.classList.contains("collapsed");
+  localStorage.setItem("sidebarCollapsed", isCollapsed.toString());
 }
 
 // Set up event listeners for form submission, theme toggle, and expected tasks
@@ -585,6 +622,7 @@ function toggleTheme() {
   const isDark = document.documentElement.classList.contains("dark")
   localStorage.setItem("theme", isDark ? "dark" : "light")
   updateOngoingTasks()
+  updateTimePieChart()
 }
 
 // Add this new function to handle task deletion
@@ -606,6 +644,397 @@ function deleteTask(taskId) {
   request.onerror = (event) => {
     console.error("Error deleting task:", event.target.error);
     alert("Error deleting task. Please try again.");
+  };
+}
+
+// Time Tracker Functions
+
+// Toggle timer start/stop
+function toggleTimer() {
+  const taskInput = document.getElementById("timer-task-input");
+  const taskName = taskInput.value.trim();
+
+  if (!taskName) {
+    alert("Please enter a task name");
+    return;
+  }
+
+  if (isTimerRunning) {
+    stopTimer();
+  } else {
+    startTimer(taskName);
+  }
+}
+
+// Start the timer
+function startTimer(taskName) {
+  if (isTimerRunning) {
+    return;
+  }
+
+  currentTaskName = taskName;
+  isTimerRunning = true;
+  timerStartTime = Date.now();
+
+  const controlBtn = document.getElementById("timer-control-btn");
+  controlBtn.textContent = "Stop";
+  controlBtn.className = "bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-6 rounded-md transition duration-300";
+
+  const taskInput = document.getElementById("timer-task-input");
+  taskInput.disabled = true;
+
+  // Update timer display every second
+  timerInterval = setInterval(() => {
+    updateTimerDisplay();
+  }, 1000);
+
+  updateTimerDisplay();
+}
+
+// Stop the timer and save the time
+function stopTimer() {
+  if (!isTimerRunning) {
+    return;
+  }
+
+  const elapsedTime = Date.now() - timerStartTime;
+  const seconds = Math.floor(elapsedTime / 1000);
+
+  // Save time tracking data
+  saveTimeTracking(currentTaskName, seconds);
+
+  // Reset timer state
+  isTimerRunning = false;
+  timerStartTime = null;
+  currentTaskName = "";
+
+  if (timerInterval) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+  }
+
+  const controlBtn = document.getElementById("timer-control-btn");
+  controlBtn.textContent = "Start";
+  controlBtn.className = "bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-6 rounded-md transition duration-300";
+
+  const taskInput = document.getElementById("timer-task-input");
+  taskInput.disabled = false;
+
+  document.getElementById("timer-display").textContent = "00:00:00";
+
+  // Update displays
+  updateTimeTrackerDisplay();
+}
+
+// Update the timer display
+function updateTimerDisplay() {
+  if (!isTimerRunning || !timerStartTime) {
+    return;
+  }
+
+  const elapsed = Date.now() - timerStartTime;
+  const hours = Math.floor(elapsed / 3600000);
+  const minutes = Math.floor((elapsed % 3600000) / 60000);
+  const seconds = Math.floor((elapsed % 60000) / 1000);
+
+  const display = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  document.getElementById("timer-display").textContent = display;
+}
+
+// Save time tracking data to IndexedDB
+function saveTimeTracking(taskName, seconds) {
+  if (!db) {
+    console.error("Database not initialized");
+    return;
+  }
+
+  const timeEntry = {
+    taskName: taskName,
+    seconds: seconds,
+    timestamp: new Date().toISOString()
+  };
+
+  const transaction = db.transaction(["timeTracking"], "readwrite");
+  const timeStore = transaction.objectStore("timeTracking");
+
+  const request = timeStore.add(timeEntry);
+
+  request.onsuccess = () => {
+    console.log("Time tracking entry saved successfully");
+  };
+
+  request.onerror = (event) => {
+    console.error("Error saving time tracking:", event.target.error);
+  };
+}
+
+// Format seconds to readable time string
+function formatTime(seconds) {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
+
+  if (hours > 0) {
+    return `${hours}h ${minutes}m ${secs}s`;
+  } else if (minutes > 0) {
+    return `${minutes}m ${secs}s`;
+  } else {
+    return `${secs}s`;
+  }
+}
+
+// Update time tracker display (counters and history)
+function updateTimeTrackerDisplay() {
+  if (!db) {
+    return;
+  }
+
+  updateTaskCounters();
+  updateTaskHistory();
+  updateTimePieChart();
+}
+
+// Update task counters showing total time per task
+function updateTaskCounters() {
+  const countersContainer = document.getElementById("task-counters");
+
+  const transaction = db.transaction(["timeTracking"], "readonly");
+  const timeStore = transaction.objectStore("timeTracking");
+
+  const request = timeStore.getAll();
+
+  request.onsuccess = () => {
+    const allEntries = request.result;
+
+    // Calculate total time per task
+    const taskTotals = {};
+    allEntries.forEach(entry => {
+      if (taskTotals[entry.taskName]) {
+        taskTotals[entry.taskName] += entry.seconds;
+      } else {
+        taskTotals[entry.taskName] = entry.seconds;
+      }
+    });
+
+    // Display counters
+    if (Object.keys(taskTotals).length === 0) {
+      countersContainer.innerHTML = '<p class="text-gray-500 dark:text-gray-400">No tracked tasks yet</p>';
+      return;
+    }
+
+    const isDarkMode = document.documentElement.classList.contains('dark');
+    const crossIcon = isDarkMode ? './icons/whitecross.svg' : './icons/cross.svg';
+
+    countersContainer.innerHTML = Object.entries(taskTotals)
+      .sort((a, b) => b[1] - a[1]) // Sort by time descending
+      .map(([taskName, totalSeconds]) => `
+        <div class="flex items-center space-x-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+          <span class="flex-grow">${taskName}</span>
+          <span class="text-sm text-gray-500 dark:text-gray-400">${formatTime(totalSeconds)}</span>
+          <button onclick="deleteTaskTimeTracking('${taskName.replace(/'/g, "\\'")}')" class="bg-blue-500 hover:bg-blue-600 rounded p-1.5 ml-2" title="Delete task time tracking">
+            <img src="${crossIcon}" class="h-3 w-3 scale-150" alt="Delete">
+          </button>
+        </div>
+      `).join("");
+  };
+
+  request.onerror = (event) => {
+    console.error("Error fetching time tracking data:", event.target.error);
+    countersContainer.innerHTML = '<p class="text-red-500">Error loading task counters</p>';
+  };
+}
+
+// Update task history (last 3 sessions)
+function updateTaskHistory() {
+  const historyContainer = document.getElementById("task-history");
+
+  if (!db) {
+    historyContainer.innerHTML = '<p class="text-gray-500 dark:text-gray-400">No recent sessions</p>';
+    return;
+  }
+
+  const transaction = db.transaction(["timeTracking"], "readonly");
+  const timeStore = transaction.objectStore("timeTracking");
+  
+  // Get all entries and sort by timestamp
+  const request = timeStore.getAll();
+
+  request.onsuccess = () => {
+    const allEntries = request.result;
+    
+    // Sort by timestamp descending and take last 3
+    const recentEntries = allEntries
+      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+      .slice(0, 3);
+
+    // Display history
+    if (recentEntries.length === 0) {
+      historyContainer.innerHTML = '<p class="text-gray-500 dark:text-gray-400">No recent sessions</p>';
+      return;
+    }
+
+    historyContainer.innerHTML = recentEntries.map(entry => {
+      const date = new Date(entry.timestamp);
+      const dateStr = date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      return `
+        <div class="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+          <span>${entry.taskName}</span>
+          <span class="text-sm text-gray-500 dark:text-gray-400">${formatTime(entry.seconds)} • ${dateStr}</span>
+        </div>
+      `;
+    }).join("");
+  };
+
+  request.onerror = (event) => {
+    console.error("Error fetching task history:", event.target.error);
+    historyContainer.innerHTML = '<p class="text-red-500">Error loading task history</p>';
+  };
+}
+
+// Delete all time tracking entries for a specific task
+function deleteTaskTimeTracking(taskName) {
+  if (!confirm(`Are you sure you want to delete all time tracking data for "${taskName}"?`)) {
+    return;
+  }
+
+  if (!db) {
+    console.error("Database not initialized");
+    return;
+  }
+
+  const transaction = db.transaction(["timeTracking"], "readwrite");
+  const timeStore = transaction.objectStore("timeTracking");
+  const index = timeStore.index("taskName");
+
+  // Get all entries for this task name
+  const request = index.getAll(taskName);
+
+  request.onsuccess = () => {
+    const entries = request.result;
+    
+    if (entries.length === 0) {
+      console.log("No entries found for task:", taskName);
+      return;
+    }
+
+    // Delete all entries
+    let deleteCount = 0;
+    entries.forEach(entry => {
+      const deleteRequest = timeStore.delete(entry.id);
+      deleteRequest.onsuccess = () => {
+        deleteCount++;
+        if (deleteCount === entries.length) {
+          console.log(`Deleted ${deleteCount} time tracking entries for task: ${taskName}`);
+          updateTimeTrackerDisplay();
+        }
+      };
+      deleteRequest.onerror = (event) => {
+        console.error("Error deleting time tracking entry:", event.target.error);
+      };
+    });
+  };
+
+  request.onerror = (event) => {
+    console.error("Error fetching time tracking entries:", event.target.error);
+    alert("Error deleting task time tracking. Please try again.");
+  };
+}
+
+// Update pie chart showing time distribution by task
+function updateTimePieChart() {
+  const ctx = document.getElementById("time-pie-chart");
+  if (!ctx) {
+    return;
+  }
+
+  // Destroy previous pie chart instance if it exists
+  if (currentPieChart) {
+    currentPieChart.destroy();
+  }
+
+  if (!db) {
+    return;
+  }
+
+  const transaction = db.transaction(["timeTracking"], "readonly");
+  const timeStore = transaction.objectStore("timeTracking");
+
+  const request = timeStore.getAll();
+
+  request.onsuccess = () => {
+    const allEntries = request.result;
+
+    // Calculate total time per task
+    const taskTotals = {};
+    allEntries.forEach(entry => {
+      if (taskTotals[entry.taskName]) {
+        taskTotals[entry.taskName] += entry.seconds;
+      } else {
+        taskTotals[entry.taskName] = entry.seconds;
+      }
+    });
+
+    // If no data, show empty state
+    if (Object.keys(taskTotals).length === 0) {
+      return;
+    }
+
+    // Sort tasks by time and get top tasks (limit to 10 for readability)
+    const sortedTasks = Object.entries(taskTotals)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10);
+
+    const labels = sortedTasks.map(([taskName]) => taskName);
+    const data = sortedTasks.map(([, seconds]) => seconds);
+
+    // Generate colors for the pie chart
+    const colors = [
+      '#3498db', '#2ecc71', '#e74c3c', '#f39c12', '#9b59b6',
+      '#1abc9c', '#34495e', '#e67e22', '#95a5a6', '#16a085'
+    ];
+
+    // Create new pie chart
+    currentPieChart = new Chart(ctx, {
+      type: "pie",
+      data: {
+        labels: labels,
+        datasets: [{
+          data: data,
+          backgroundColor: colors.slice(0, labels.length),
+          borderColor: document.documentElement.classList.contains('dark') ? '#1f2937' : '#ffffff',
+          borderWidth: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'right',
+            labels: {
+              color: document.documentElement.classList.contains('dark') ? '#e5e7eb' : '#374151',
+              font: {
+                size: 12
+              }
+            }
+          },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                const label = context.label || '';
+                const value = context.parsed || 0;
+                const formattedTime = formatTime(value);
+                return `${label}: ${formattedTime}`;
+              }
+            }
+          }
+        }
+      }
+    });
+  };
+
+  request.onerror = (event) => {
+    console.error("Error fetching time tracking data for pie chart:", event.target.error);
   };
 }
 

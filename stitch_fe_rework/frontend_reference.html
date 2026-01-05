@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>To-Do Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+<script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "primary": "#137fec",
+              "background-light": "#f6f7f8",
+              "background-dark": "#101922",
+              "success": "#50E3C2",
+              "warning": "#F5A623",
+            },
+            fontFamily: {
+              "display": ["Inter", "sans-serif"]
+            },
+            borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+      body {
+        font-family: 'Inter', sans-serif;
+      }
+      .material-symbols-outlined {
+        font-variation-settings:
+        'FILL' 0,
+        'wght' 400,
+        'GRAD' 0,
+        'opsz' 24
+      }
+      .material-symbols-outlined.fill {
+        font-variation-settings: 'FILL' 1;
+      }
+    </style>
+</head>
+<body class="font-display bg-background-light dark:bg-background-dark text-[#111418] dark:text-white/90">
+<div class="relative flex h-auto min-h-screen w-full flex-col group/design-root overflow-x-hidden">
+<div class="flex h-full grow flex-row">
+<!-- SideNavBar -->
+<aside class="flex-shrink-0 w-64 bg-white dark:bg-background-dark border-r border-gray-200 dark:border-gray-800">
+<div class="flex h-full flex-col justify-between p-4">
+<div class="flex flex-col gap-4">
+<div class="flex gap-3 items-center px-2">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10" data-alt="User avatar with a colorful gradient" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuDgtKbj85S525xOJmJmTwJyYH3YlCnxniNM_meugy6DScIrR1Azm4ReF7aWfPwrLW3tws9vwkKxpTQlk8Lv1llV0mQcQk6n9sZtZun1B0YRpiHQcNIRHoQJ5BhDU9UtcW5P6TKpsRrQ2zKUjU6lZ2IvTGyCiLO2lHP9A4wwUMVIso-7fBLGQjwotiWSXPc_rLU5qLonoRDbxF1i3fNpsIlWsVVv8Siewr120bJBYwbfw0IzKmifhhgL2K63vHGTFACNKiejHVv9Y5o");'></div>
+<div class="flex flex-col">
+<h1 class="text-[#111418] dark:text-white text-base font-medium leading-normal">Alex Doe</h1>
+<p class="text-[#617589] dark:text-gray-400 text-sm font-normal leading-normal">alex.doe@email.com</p>
+</div>
+</div>
+<div class="flex flex-col gap-2 mt-6">
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg bg-primary/10 text-primary dark:bg-primary/20" href="#">
+<span class="material-symbols-outlined fill">dashboard</span>
+<p class="text-sm font-medium leading-normal">Dashboard</p>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10" href="#">
+<span class="material-symbols-outlined">check_circle</span>
+<p class="text-sm font-medium leading-normal">My Tasks</p>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10" href="#">
+<span class="material-symbols-outlined">calendar_today</span>
+<p class="text-sm font-medium leading-normal">Calendar</p>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10" href="#">
+<span class="material-symbols-outlined">folder</span>
+<p class="text-sm font-medium leading-normal">Projects</p>
+</a>
+</div>
+</div>
+<div class="flex flex-col gap-4">
+<button class="flex min-w-[84px] w-full cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-primary text-white text-sm font-bold leading-normal tracking-[0.015em] hover:bg-primary/90 transition-colors gap-2">
+<span class="material-symbols-outlined">add</span>
+<span class="truncate">New Task</span>
+</button>
+<div class="flex flex-col gap-1">
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10" href="#">
+<span class="material-symbols-outlined">settings</span>
+<p class="text-sm font-medium leading-normal">Settings</p>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10" href="#">
+<span class="material-symbols-outlined">help</span>
+<p class="text-sm font-medium leading-normal">Help</p>
+</a>
+</div>
+</div>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="flex-1 p-6 lg:p-10">
+<div class="layout-content-container flex flex-col w-full">
+<!-- PageHeading -->
+<div class="flex flex-wrap justify-between gap-3 mb-6">
+<div class="flex min-w-72 flex-col gap-3">
+<p class="text-[#111418] dark:text-white text-4xl font-black leading-tight tracking-[-0.033em]">Good morning, Alex!</p>
+<p class="text-[#617589] dark:text-gray-400 text-base font-normal leading-normal">Here's your productivity snapshot for today.</p>
+</div>
+</div>
+<!-- Quote Card -->
+<div class="mb-8 @container">
+<div class="flex flex-col items-stretch justify-start rounded-xl @xl:flex-row @xl:items-center bg-white dark:bg-background-dark shadow-sm">
+<div class="w-full @xl:w-1/3 bg-center bg-no-repeat aspect-video @xl:aspect-auto @xl:h-full bg-cover rounded-t-xl @xl:rounded-l-xl @xl:rounded-tr-none" data-alt="Abstract image with soothing blue and purple gradients" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuDeV3_FiYkofmMcPTGUkQlMKoq9sY5B6y4A1qmiB4eZix16MMhe73y9Jz5LMIDOpdKxnW1Vd2zOsjxhgh4DLe0Wq39bMgsjTcKYumpPot73MM_hHTJsctPDvYtjoF9QWTaoNL0zWII7FKoxoR2LncKgRM0LENP6gQXiqgMu1FAEOkvXFF7kvm-TrXnt8EBs0eFMqGOZyYRHtPNHuNSdmJhIpJ0jPNddNDjRrkEPqIArvWI4WdRZ5Qpe4JTYv5zUFt_1FcMswwTiy4k");'></div>
+<div class="flex w-full grow flex-col items-stretch justify-center gap-1 p-6 @xl:px-8">
+<p class="text-[#111418] dark:text-white text-lg font-bold leading-tight tracking-[-0.015em]">“The secret of getting ahead is getting started.”</p>
+<div class="flex items-end gap-3 justify-between"><p class="text-[#617589] dark:text-gray-400 text-base font-normal leading-normal">— Mark Twain</p></div>
+</div>
+</div>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+<!-- Left Column: Task Management -->
+<div class="lg:col-span-2 flex flex-col gap-8">
+<!-- Ongoing Tasks -->
+<div class="bg-white dark:bg-background-dark p-6 rounded-xl shadow-sm">
+<div class="flex items-center justify-between pb-3">
+<h2 class="text-[#111418] dark:text-white text-[22px] font-bold leading-tight tracking-[-0.015em]">Tasks</h2>
+<div class="flex h-10 w-auto items-center justify-center rounded-lg bg-background-light dark:bg-white/10 p-1">
+<label class="flex cursor-pointer h-full grow items-center justify-center overflow-hidden rounded-lg px-3 has-[:checked]:bg-white dark:has-[:checked]:bg-background-dark has-[:checked]:shadow-sm text-[#617589] dark:text-gray-400 text-sm font-medium leading-normal">
+<span class="truncate">Ongoing</span>
+<input checked="" class="invisible w-0" name="task-filter" type="radio" value="Ongoing"/>
+</label>
+<label class="flex cursor-pointer h-full grow items-center justify-center overflow-hidden rounded-lg px-3 has-[:checked]:bg-white dark:has-[:checked]:bg-background-dark has-[:checked]:shadow-sm text-[#617589] dark:text-gray-400 text-sm font-medium leading-normal">
+<span class="truncate">Today</span>
+<input class="invisible w-0" name="task-filter" type="radio" value="Today"/>
+</label>
+<label class="flex cursor-pointer h-full grow items-center justify-center overflow-hidden rounded-lg px-3 has-[:checked]:bg-white dark:has-[:checked]:bg-background-dark has-[:checked]:shadow-sm text-[#617589] dark:text-gray-400 text-sm font-medium leading-normal">
+<span class="truncate">Completed</span>
+<input class="invisible w-0" name="task-filter" type="radio" value="Completed"/>
+</label>
+</div>
+</div>
+<div class="flex flex-col gap-3 mt-4">
+<div class="flex items-center gap-4 p-3 rounded-lg border border-transparent hover:bg-gray-50 dark:hover:bg-white/5">
+<input class="h-5 w-5 rounded border-gray-300 dark:border-gray-600 text-primary focus:ring-primary dark:bg-background-dark" type="checkbox"/>
+<div class="flex-grow">
+<p class="font-medium text-[#111418] dark:text-white">Finalize Q3 marketing report</p>
+<p class="text-sm text-[#617589] dark:text-gray-400">Due: Today</p>
+</div>
+<div class="w-2.5 h-2.5 rounded-full bg-warning"></div>
+</div>
+<div class="flex items-center gap-4 p-3 rounded-lg border border-transparent hover:bg-gray-50 dark:hover:bg-white/5">
+<input class="h-5 w-5 rounded border-gray-300 dark:border-gray-600 text-primary focus:ring-primary dark:bg-background-dark" type="checkbox"/>
+<div class="flex-grow">
+<p class="font-medium text-[#111418] dark:text-white">Draft presentation for the new feature</p>
+<p class="text-sm text-[#617589] dark:text-gray-400">Due: Tomorrow</p>
+</div>
+<div class="w-2.5 h-2.5 rounded-full bg-primary/80"></div>
+</div>
+<div class="flex items-center gap-4 p-3 rounded-lg border border-transparent hover:bg-gray-50 dark:hover:bg-white/5">
+<input class="h-5 w-5 rounded border-gray-300 dark:border-gray-600 text-primary focus:ring-primary dark:bg-background-dark" type="checkbox"/>
+<div class="flex-grow">
+<p class="font-medium text-[#111418] dark:text-white">Book flight tickets for the conference</p>
+<p class="text-sm text-[#617589] dark:text-gray-400">Due: Oct 28</p>
+</div>
+<div class="w-2.5 h-2.5 rounded-full bg-primary/80"></div>
+</div>
+<div class="flex items-center gap-4 p-3 rounded-lg border border-transparent hover:bg-gray-50 dark:hover:bg-white/5">
+<input checked="" class="h-5 w-5 rounded border-gray-300 dark:border-gray-600 text-primary focus:ring-primary dark:bg-background-dark" type="checkbox"/>
+<div class="flex-grow">
+<p class="font-medium text-gray-500 dark:text-gray-400 line-through">Onboard new design intern</p>
+<p class="text-sm text-gray-400 dark:text-gray-500 line-through">Completed: Yesterday</p>
+</div>
+<div class="w-2.5 h-2.5 rounded-full bg-success"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Right Column: Productivity Insights -->
+<div class="lg:col-span-1 flex flex-col gap-8">
+<div class="bg-white dark:bg-background-dark p-6 rounded-xl shadow-sm">
+<h3 class="font-bold text-[#111418] dark:text-white">Day Streak</h3>
+<div class="flex items-center gap-4 mt-4">
+<span class="material-symbols-outlined text-5xl text-warning">local_fire_department</span>
+<div>
+<p class="text-4xl font-black tracking-tighter text-[#111418] dark:text-white">12</p>
+<p class="text-[#617589] dark:text-gray-400">days in a row</p>
+</div>
+</div>
+</div>
+<div class="bg-white dark:bg-background-dark p-6 rounded-xl shadow-sm">
+<h3 class="font-bold text-[#111418] dark:text-white">Last 7 Days Overview</h3>
+<div class="flex justify-between items-end gap-2 h-32 mt-4 pt-4 border-t border-gray-100 dark:border-white/10">
+<div class="flex flex-col items-center gap-2 flex-1">
+<div class="w-full bg-primary/20 dark:bg-primary/30 rounded-full h-full flex items-end"><div class="bg-primary rounded-full w-full" style="height: 60%;"></div></div><span class="text-xs text-[#617589] dark:text-gray-400">M</span>
+</div>
+<div class="flex flex-col items-center gap-2 flex-1">
+<div class="w-full bg-primary/20 dark:bg-primary/30 rounded-full h-full flex items-end"><div class="bg-primary rounded-full w-full" style="height: 80%;"></div></div><span class="text-xs text-[#617589] dark:text-gray-400">T</span>
+</div>
+<div class="flex flex-col items-center gap-2 flex-1">
+<div class="w-full bg-primary/20 dark:bg-primary/30 rounded-full h-full flex items-end"><div class="bg-primary rounded-full w-full" style="height: 40%;"></div></div><span class="text-xs text-[#617589] dark:text-gray-400">W</span>
+</div>
+<div class="flex flex-col items-center gap-2 flex-1">
+<div class="w-full bg-primary/20 dark:bg-primary/30 rounded-full h-full flex items-end"><div class="bg-primary rounded-full w-full" style="height: 90%;"></div></div><span class="text-xs text-[#617589] dark:text-gray-400">T</span>
+</div>
+<div class="flex flex-col items-center gap-2 flex-1">
+<div class="w-full bg-primary/20 dark:bg-primary/30 rounded-full h-full flex items-end"><div class="bg-primary rounded-full w-full" style="height: 50%;"></div></div><span class="text-xs text-[#617589] dark:text-gray-400">F</span>
+</div>
+<div class="flex flex-col items-center gap-2 flex-1">
+<div class="w-full bg-primary/20 dark:bg-primary/30 rounded-full h-full flex items-end"><div class="bg-primary rounded-full w-full" style="height: 30%;"></div></div><span class="text-xs text-[#617589] dark:text-gray-400">S</span>
+</div>
+<div class="flex flex-col items-center gap-2 flex-1">
+<div class="w-full bg-primary/20 dark:bg-primary/30 rounded-full h-full flex items-end"><div class="bg-primary rounded-full w-full" style="height: 75%;"></div></div><span class="text-xs text-[#617589] dark:text-gray-400">S</span>
+</div>
+</div>
+</div>
+<div class="bg-white dark:bg-background-dark p-6 rounded-xl shadow-sm">
+<h3 class="font-bold text-[#111418] dark:text-white">Last 30 Days Statistics</h3>
+<div class="flex flex-col gap-4 mt-4">
+<div class="flex justify-between items-baseline">
+<p class="text-[#617589] dark:text-gray-400">Tasks Completed</p>
+<p class="text-2xl font-bold text-[#111418] dark:text-white">142</p>
+</div>
+<div class="flex justify-between items-baseline">
+<p class="text-[#617589] dark:text-gray-400">Most Productive Day</p>
+<p class="text-lg font-semibold text-[#111418] dark:text-white">Thursday</p>
+</div>
+<div class="flex justify-between items-baseline">
+<p class="text-[#617589] dark:text-gray-400">Completion Rate</p>
+<p class="text-2xl font-bold text-success">92%</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+</div>
+</body></html>

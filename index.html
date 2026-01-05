@@ -5,15 +5,163 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Modern Dailies App</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
     <link href="output.css" rel="stylesheet">
+    <style>
+      .material-symbols-outlined {
+        font-variation-settings:
+        'FILL' 0,
+        'wght' 400,
+        'GRAD' 0,
+        'opsz' 24
+      }
+      .material-symbols-outlined.fill {
+        font-variation-settings: 'FILL' 1;
+      }
+      
+      /* Sidebar collapse styles */
+      #sidebar.collapsed {
+        width: 80px;
+      }
+      
+      #sidebar.collapsed > div {
+        padding: 1rem 0.5rem;
+      }
+      
+      #sidebar.collapsed .sidebar-text {
+        display: none;
+      }
+      
+      #sidebar.collapsed .sidebar-content {
+        justify-content: flex-start;
+        padding: 0;
+        width: auto;
+      }
+      
+      #sidebar.collapsed .sidebar-content .size-10 {
+        display: none;
+      }
+      
+      #sidebar.collapsed .sidebar-link,
+      #sidebar.collapsed .sidebar-button {
+        justify-content: center;
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+        gap: 0;
+        min-width: auto;
+      }
+      
+      #sidebar.collapsed .sidebar-link span,
+      #sidebar.collapsed .sidebar-button span {
+        margin: 0;
+      }
+      
+      #sidebar.collapsed #sidebar-toggle {
+        position: absolute;
+        top: 0.5rem;
+        right: 0.25rem;
+        z-index: 10;
+        padding: 0.25rem;
+      }
+      
+      #sidebar.collapsed #sidebar-toggle span {
+        transform: rotate(180deg);
+        font-size: 1.25rem;
+      }
+      
+      #sidebar.collapsed > div > div:first-child > div:first-child {
+        margin-bottom: 1.5rem;
+        padding-top: 0.5rem;
+      }
+      
+      #sidebar.collapsed .sidebar-content {
+        width: auto;
+      }
+      
+      #sidebar.collapsed .sidebar-link,
+      #sidebar.collapsed .sidebar-button {
+        width: 100%;
+      }
+      
+      #sidebar {
+        position: sticky;
+        top: 0;
+        align-self: flex-start;
+        overflow-y: auto;
+        overflow-x: hidden;
+        max-height: 100vh;
+      }
+      
+      .sidebar-text {
+        transition: opacity 0.2s;
+      }
+    </style>
 
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 transition-colors duration-300">
-    <div class="container mx-auto px-4 py-8">
-        <header class="text-center mb-8">
-            <h1 class="text-4xl font-bold mb-4">Modern Dailies App</h1>
-            <div id="today-info" class="text-lg"></div>
-        </header>
+    <div class="flex h-auto min-h-screen w-full flex-col">
+        <div class="flex h-full grow flex-row relative">
+            <!-- Sidebar -->
+            <aside id="sidebar" class="flex-shrink-0 w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 h-screen sticky top-0 self-start transition-all duration-300">
+                <div class="flex h-full flex-col justify-between p-4">
+                    <div class="flex flex-col gap-4">
+                        <div class="flex items-center justify-between mb-2 relative">
+                            <div class="flex gap-3 items-center px-2 sidebar-content w-full">
+                                <div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10 bg-gradient-to-br from-blue-400 to-purple-500 flex-shrink-0"></div>
+                                <div class="flex flex-col sidebar-text flex-1 min-w-0">
+                                    <h1 class="text-gray-900 dark:text-white text-base font-medium leading-normal truncate">User</h1>
+                                    <p class="text-gray-500 dark:text-gray-400 text-sm font-normal leading-normal truncate">user@email.com</p>
+                                </div>
+                            </div>
+                            <button id="sidebar-toggle" onclick="toggleSidebar()" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors flex-shrink-0">
+                                <span class="material-symbols-outlined text-lg">chevron_left</span>
+                            </button>
+                        </div>
+                        <div class="flex flex-col gap-2 mt-6">
+                            <a class="flex items-center gap-3 px-3 py-2 rounded-lg bg-blue-500/10 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400 sidebar-link" href="#">
+                                <span class="material-symbols-outlined fill">dashboard</span>
+                                <p class="text-sm font-medium leading-normal sidebar-text">Dashboard</p>
+                            </a>
+                            <a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 sidebar-link" href="#">
+                                <span class="material-symbols-outlined">check_circle</span>
+                                <p class="text-sm font-medium leading-normal sidebar-text">My Tasks</p>
+                            </a>
+                            <a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 sidebar-link" href="#">
+                                <span class="material-symbols-outlined">calendar_today</span>
+                                <p class="text-sm font-medium leading-normal sidebar-text">Calendar</p>
+                            </a>
+                            <a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 sidebar-link" href="#">
+                                <span class="material-symbols-outlined">folder</span>
+                                <p class="text-sm font-medium leading-normal sidebar-text">Projects</p>
+                            </a>
+                        </div>
+                    </div>
+                    <div class="flex flex-col gap-4">
+                        <button class="flex min-w-[84px] w-full cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-blue-500 text-white text-sm font-bold leading-normal tracking-[0.015em] hover:bg-blue-600 transition-colors gap-2 sidebar-button">
+                            <span class="material-symbols-outlined">add</span>
+                            <span class="truncate sidebar-text">New Task</span>
+                        </button>
+                        <div class="flex flex-col gap-1">
+                            <a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 sidebar-link" href="#">
+                                <span class="material-symbols-outlined">settings</span>
+                                <p class="text-sm font-medium leading-normal sidebar-text">Settings</p>
+                            </a>
+                            <a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 sidebar-link" href="#">
+                                <span class="material-symbols-outlined">help</span>
+                                <p class="text-sm font-medium leading-normal sidebar-text">Help</p>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Main Content -->
+            <main class="flex-1 p-6 lg:p-10">
+                <div class="w-full">
+                    <header class="text-center mb-8">
+                        <h1 class="text-4xl font-bold mb-4">Modern Dailies App</h1>
+                        <div id="today-info" class="text-lg"></div>
+                    </header>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
@@ -70,10 +218,58 @@
         <div class="mt-8 justify-center">
             <!-- Shift + Alt + Arrow = Multiselect for line -->
             <iframe src="https://calendar.google.com/calendar/embed?height=600&wkst=1&ctz=Europe%2FBerlin&showPrint=0&showCalendars=0&showDate=0&showNav=0&showTitle=0&showTz=0&mode=AGENDA&src=M2FmZmI3Nzk0YTMyNjQwZWE4ZGY2MDI1YTY5YzcyYzY0OGQ3YTc2YmM4NTM5NjljNjVhZmJhYzI3MTEyMDI5Y0Bncm91cC5jYWxlbmRhci5nb29nbGUuY29t&color=%238e24aa" style="border-width:0" width="100%" height="600" frameborder="0" scrolling="no"></iframe>        </div>
-        <div class="mt-8 text-center">
-            <button onclick="resetDatabase()" class="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-md transition duration-300">
-                Reset Database
-            </button>
+        
+        <!-- Time Tracker Section -->
+        <div class="mt-8 bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+            <h2 class="text-2xl font-semibold mb-4">Time Tracker</h2>
+            
+            <!-- Timer Input and Controls -->
+            <div class="space-y-4 mb-6">
+                <input type="text" id="timer-task-input" placeholder="Enter task name..." 
+                       class="w-full px-4 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <div class="flex items-center space-x-4">
+                    <button id="timer-control-btn" onclick="toggleTimer()" 
+                            class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-6 rounded-md transition duration-300">
+                        Start
+                    </button>
+                    <div id="timer-display" class="text-xl font-mono text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-700 px-4 py-2 rounded-md ml-5">
+                        00:00:00
+                    </div>
+                </div>
+            </div>
+
+            <!-- Task Time Counters -->
+            <div class="border-t pt-6 mb-6">
+                <h3 class="text-xl font-semibold mb-4">Total Time by Task</h3>
+                <div id="task-counters" class="space-y-4">
+                    <!-- Task counters will be dynamically inserted here -->
+                </div>
+            </div>
+
+            <!-- Task History -->
+            <div class="border-t pt-6">
+                <h3 class="text-xl font-semibold mb-4">Recent Sessions (Last 3)</h3>
+                <div id="task-history" class="space-y-4">
+                    <!-- Task history will be dynamically inserted here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Pie Chart for Time Distribution -->
+        <div class="mt-8 bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+            <h2 class="text-2xl font-semibold mb-4">Time Distribution</h2>
+            <div class="chart-container h-64">
+                <canvas id="time-pie-chart"></canvas>
+            </div>
+        </div>
+
+                    <div class="mt-8 text-center">
+                        <button onclick="resetDatabase()" class="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-md transition duration-300">
+                            Reset Database
+                        </button>
+                    </div>
+                </div>
+            </main>
         </div>
     </div>
 
