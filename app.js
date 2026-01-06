@@ -180,6 +180,88 @@ function toggleSidebar() {
   localStorage.setItem("sidebarCollapsed", isCollapsed.toString());
 }
 
+// Set active sidebar link styling
+function setActiveNav(view) {
+  const links = document.querySelectorAll(".sidebar-link[data-view]");
+  links.forEach((link) => {
+    const icon = link.querySelector(".material-symbols-outlined");
+
+    // Reset classes
+    link.classList.remove(
+      "bg-blue-500/10",
+      "text-blue-600",
+      "dark:bg-blue-500/20",
+      "dark:text-blue-400",
+    );
+    if (icon) {
+      icon.classList.remove("fill");
+    }
+
+    // Apply active styles to the selected view
+    if (link.dataset.view === view) {
+      link.classList.add(
+        "bg-blue-500/10",
+        "text-blue-600",
+        "dark:bg-blue-500/20",
+        "dark:text-blue-400",
+      );
+      if (icon) {
+        icon.classList.add("fill");
+      }
+    }
+  });
+}
+
+// Show/hide main sections based on selected view
+function setActiveView(view) {
+  const dashboard = document.getElementById("dashboard-section");
+  const calendar = document.getElementById("calendar-section");
+  const timeTracker = document.getElementById("time-tracker-section");
+  const timeOverview = document.getElementById("time-overview-section");
+
+  // Helper to show/hide
+  const show = (el) => el && el.classList.remove("hidden");
+  const hide = (el) => el && el.classList.add("hidden");
+
+  if (!dashboard || !calendar || !timeTracker || !timeOverview) {
+    return;
+  }
+
+  switch (view) {
+    case "tasks":
+      // My Tasks: everything except calendar and time tracker/overview
+      show(dashboard);
+      hide(calendar);
+      hide(timeTracker);
+      hide(timeOverview);
+      break;
+    case "calendar":
+      // Calendar only (keep header)
+      hide(dashboard);
+      show(calendar);
+      hide(timeTracker);
+      hide(timeOverview);
+      break;
+    case "time":
+      // Time Overview: time tracker + related statistics
+      hide(dashboard);
+      hide(calendar);
+      show(timeTracker);
+      show(timeOverview);
+      break;
+    case "dashboard":
+    default:
+      // Dashboard: everything visible
+      show(dashboard);
+      show(calendar);
+      show(timeTracker);
+      show(timeOverview);
+      break;
+  }
+
+  setActiveNav(view);
+}
+
 // Set up event listeners for form submission, theme toggle, and expected tasks
 function setupEventListeners() {
   document.getElementById("add-task-form").addEventListener("submit", (e) => {
@@ -194,6 +276,18 @@ function setupEventListeners() {
     expectedTasksPerDay = parseInt(e.target.value) || 1;
     updateChart();
   });
+
+  // Sidebar navigation clicks
+  document.querySelectorAll(".sidebar-link[data-view]").forEach((link) => {
+    link.addEventListener("click", (e) => {
+      e.preventDefault();
+      const view = link.dataset.view;
+      setActiveView(view);
+    });
+  });
+
+  // Initialize default view as dashboard
+  setActiveView("dashboard");
 }
 
 // Format a date object to YYYY-MM-DD string
@@ -329,11 +423,14 @@ function updateTodayInfo() {
   request.onsuccess = () => {
     const completedToday = request.result
     todayInfo.innerHTML = `
-            <p class="mb-2">Today is the ${today.getDate()} of ${today.toLocaleString("default", { month: "long" })}!</p>
-            <p class="mb-4">You have completed ${completedToday} tasks today.</p>
+            <div class="flex flex-wrap items-baseline gap-2 mb-4 text-sm md:text-base">
+                <span>Today is the ${today.getDate()} of ${today.toLocaleString("default", { month: "long" })}!</span>
+                <span class="text-gray-400 dark:text-gray-500">•</span>
+                <span>You have completed ${completedToday} tasks today.</span>
+            </div>
             <div class="bg-gray-100 dark:bg-gray-700 p-4 rounded-lg">
-                <p class="italic mb-2">"${quote.text}"</p>
-                <p class="text-right text-sm text-gray-600 dark:text-gray-400">- ${quote.author}</p>
+                <p class="italic mb-2 text-base md:text-2xl leading-snug">"${quote.text}"</p>
+                <p class="text-right text-xs md:text-sm text-gray-600 dark:text-gray-400">- ${quote.author}</p>
             </div>
         `
   }

@@ -95,6 +95,47 @@
       .sidebar-text {
         transition: opacity 0.2s;
       }
+
+      /* Mobile adjustments for sidebar and layout */
+      @media (max-width: 640px) {
+        /* Make sidebar narrower on phones */
+        #sidebar {
+          width: 72px;
+        }
+
+        #sidebar > div {
+          padding: 0.75rem 0.25rem;
+        }
+
+        /* Hide text labels to keep proportions similar */
+        #sidebar:not(.collapsed) .sidebar-text {
+          display: none;
+        }
+
+        /* Slightly shrink avatar on phones */
+        #sidebar:not(.collapsed) .sidebar-content .size-10 {
+          width: 2.25rem;
+          height: 2.25rem;
+        }
+
+        /* Center icons in nav links/buttons */
+        #sidebar:not(.collapsed) .sidebar-link,
+        #sidebar:not(.collapsed) .sidebar-button {
+          justify-content: center;
+          padding-left: 0.25rem;
+          padding-right: 0.25rem;
+        }
+
+        /* Tuck toggle button closer to the edge */
+        #sidebar:not(.collapsed) #sidebar-toggle {
+          padding: 0.25rem;
+        }
+
+        /* So main content has a bit less padding on very small screens */
+        main {
+          padding: 1rem;
+        }
+      }
     </style>
 
 </head>
@@ -118,21 +159,25 @@
                             </button>
                         </div>
                         <div class="flex flex-col gap-2 mt-6">
-                            <a class="flex items-center gap-3 px-3 py-2 rounded-lg bg-blue-500/10 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400 sidebar-link" href="#">
+                            <!-- Dashboard -->
+                            <a class="flex items-center gap-3 px-3 py-2 rounded-lg bg-blue-500/10 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400 sidebar-link" href="#" data-view="dashboard">
                                 <span class="material-symbols-outlined fill">dashboard</span>
                                 <p class="text-sm font-medium leading-normal sidebar-text">Dashboard</p>
                             </a>
-                            <a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 sidebar-link" href="#">
+                            <!-- My Tasks -->
+                            <a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 sidebar-link" href="#" data-view="tasks">
                                 <span class="material-symbols-outlined">check_circle</span>
                                 <p class="text-sm font-medium leading-normal sidebar-text">My Tasks</p>
                             </a>
-                            <a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 sidebar-link" href="#">
+                            <!-- Calendar -->
+                            <a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 sidebar-link" href="#" data-view="calendar">
                                 <span class="material-symbols-outlined">calendar_today</span>
                                 <p class="text-sm font-medium leading-normal sidebar-text">Calendar</p>
                             </a>
-                            <a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 sidebar-link" href="#">
-                                <span class="material-symbols-outlined">folder</span>
-                                <p class="text-sm font-medium leading-normal sidebar-text">Projects</p>
+                            <!-- Time Overview -->
+                            <a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 sidebar-link" href="#" data-view="time">
+                                <span class="material-symbols-outlined">schedule</span>
+                                <p class="text-sm font-medium leading-normal sidebar-text">Time Overview</p>
                             </a>
                         </div>
                     </div>
@@ -156,14 +201,13 @@
             </aside>
 
             <!-- Main Content -->
-            <main class="flex-1 p-6 lg:p-10">
-                <div class="w-full">
-                    <header class="text-center mb-8">
-                        <h1 class="text-4xl font-bold mb-4">Modern Dailies App</h1>
-                        <div id="today-info" class="text-lg"></div>
+            <main class="flex-1 min-w-0 p-6 lg:p-10">
+                <div class="w-full max-w-5xl mx-auto">
+                    <header class="mb-8">
+                        <div id="today-info" class="text-base md:text-lg"></div>
                     </header>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div id="dashboard-section" class="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
                 <h2 class="text-2xl font-semibold mb-4">Ongoing Tasks</h2>
                 <div id="ongoing-tasks" class="space-y-4 mb-6"></div>
@@ -215,51 +259,54 @@
                 </div>
             </div>
         </div>
-        <div class="mt-8 justify-center">
+        <div id="calendar-section" class="mt-8 justify-center">
             <!-- Shift + Alt + Arrow = Multiselect for line -->
             <iframe src="https://calendar.google.com/calendar/embed?height=600&wkst=1&ctz=Europe%2FBerlin&showPrint=0&showCalendars=0&showDate=0&showNav=0&showTitle=0&showTz=0&mode=AGENDA&src=M2FmZmI3Nzk0YTMyNjQwZWE4ZGY2MDI1YTY5YzcyYzY0OGQ3YTc2YmM4NTM5NjljNjVhZmJhYzI3MTEyMDI5Y0Bncm91cC5jYWxlbmRhci5nb29nbGUuY29t&color=%238e24aa" style="border-width:0" width="100%" height="600" frameborder="0" scrolling="no"></iframe>        </div>
         
-        <!-- Time Tracker Section -->
-        <div class="mt-8 bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-            <h2 class="text-2xl font-semibold mb-4">Time Tracker</h2>
-            
-            <!-- Timer Input and Controls -->
-            <div class="space-y-4 mb-6">
-                <input type="text" id="timer-task-input" placeholder="Enter task name..." 
-                       class="w-full px-4 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <div class="flex items-center space-x-4">
-                    <button id="timer-control-btn" onclick="toggleTimer()" 
-                            class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-6 rounded-md transition duration-300">
-                        Start
-                    </button>
-                    <div id="timer-display" class="text-xl font-mono text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-700 px-4 py-2 rounded-md ml-5">
-                        00:00:00
+        <!-- Time Tracker + Time Overview Section -->
+        <div class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+            <!-- Time Tracker Section -->
+            <div id="time-tracker-section" class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                <h2 class="text-2xl font-semibold mb-4">Time Tracker</h2>
+                
+                <!-- Timer Input and Controls -->
+                <div class="space-y-4 mb-6">
+                    <input type="text" id="timer-task-input" placeholder="Enter task name..." 
+                        class="w-full px-4 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <div class="flex items-center space-x-4">
+                        <button id="timer-control-btn" onclick="toggleTimer()" 
+                                class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-6 rounded-md transition duration-300">
+                            Start
+                        </button>
+                        <div id="timer-display" class="text-xl font-mono text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-700 px-4 py-2 rounded-md ml-5">
+                            00:00:00
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Task Time Counters -->
+                <div class="border-t pt-6 mb-6">
+                    <h3 class="text-xl font-semibold mb-4">Total Time by Task</h3>
+                    <div id="task-counters" class="space-y-4">
+                        <!-- Task counters will be dynamically inserted here -->
+                    </div>
+                </div>
+
+                <!-- Task History -->
+                <div class="border-t pt-6">
+                    <h3 class="text-xl font-semibold mb-4">Recent Sessions (Last 3)</h3>
+                    <div id="task-history" class="space-y-4">
+                        <!-- Task history will be dynamically inserted here -->
                     </div>
                 </div>
             </div>
 
-            <!-- Task Time Counters -->
-            <div class="border-t pt-6 mb-6">
-                <h3 class="text-xl font-semibold mb-4">Total Time by Task</h3>
-                <div id="task-counters" class="space-y-4">
-                    <!-- Task counters will be dynamically inserted here -->
+            <!-- Pie Chart for Time Distribution -->
+            <div id="time-overview-section" class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                <h2 class="text-2xl font-semibold mb-4">Time Distribution</h2>
+                <div class="chart-container h-64">
+                    <canvas id="time-pie-chart"></canvas>
                 </div>
-            </div>
-
-            <!-- Task History -->
-            <div class="border-t pt-6">
-                <h3 class="text-xl font-semibold mb-4">Recent Sessions (Last 3)</h3>
-                <div id="task-history" class="space-y-4">
-                    <!-- Task history will be dynamically inserted here -->
-                </div>
-            </div>
-        </div>
-
-        <!-- Pie Chart for Time Distribution -->
-        <div class="mt-8 bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-            <h2 class="text-2xl font-semibold mb-4">Time Distribution</h2>
-            <div class="chart-container h-64">
-                <canvas id="time-pie-chart"></canvas>
             </div>
         </div>
 
