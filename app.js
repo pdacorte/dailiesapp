@@ -429,7 +429,7 @@ function updateTodayInfo() {
                 <span>You have completed ${completedToday} tasks today.</span>
             </div>
             <div class="bg-gray-100 dark:bg-gray-700 p-4 rounded-lg">
-                <p class="italic mb-2 text-base md:text-2xl leading-snug">"${quote.text}"</p>
+                <p class="italic mb-2 text-base md:text-1xl leading-snug">"${quote.text}"</p>
                 <p class="text-right text-xs md:text-sm text-gray-600 dark:text-gray-400">- ${quote.author}</p>
             </div>
         `
