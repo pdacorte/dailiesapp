@@ -423,7 +423,7 @@ function updateTodayInfo() {
   request.onsuccess = () => {
     const completedToday = request.result
     todayInfo.innerHTML = `
-            <div class="flex flex-wrap items-baseline gap-2 mb-4 text-sm md:text-base">
+            <div class="flex flex-wrap items-baseline gap-2 mb-4 text-sm md:text-base font-bold">
                 <span>Today is the ${today.getDate()} of ${today.toLocaleString("default", { month: "long" })}!</span>
                 <span class="text-gray-400 dark:text-gray-500">•</span>
                 <span>You have completed ${completedToday} tasks today.</span>
