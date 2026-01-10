@@ -24,7 +24,7 @@ This will show you the current status of your Google Drive setup.
 ### 2. **Invalid or Missing Client ID**
 **Symptoms**: "Invalid Client ID" or authentication failures
 **Solution**:
-1. Check that you have a Client ID in `google-drive-config.js`
+1. Check that you have a Client ID in `google-drive.js` (or in Settings)
 2. Verify the Client ID format: `xxxxxxxxxxxx-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.apps.googleusercontent.com`
 3. Make sure the Client ID is for a "Web application"
 
@@ -59,7 +59,7 @@ Check the browser console for these specific errors:
 
 #### **"Invalid scope" or "Permission denied"**
 - The app is requesting permissions it shouldn't need
-- Make sure the scopes in `google-drive-config.js` are correct
+- Make sure the scopes in `google-drive.js` are correct
 
 ## Step-by-Step Fix
 
@@ -69,7 +69,7 @@ Check the browser console for these specific errors:
 3. Restart the browser
 
 ### Step 2: Verify Configuration
-1. Open `google-drive-config.js`
+1. Open `google-drive.js`
 2. Make sure `CLIENT_ID` has your actual Client ID
 3. Check that `TEST_MODE` is `true` for development
 
@@ -132,7 +132,7 @@ If nothing works, try a complete reset:
 2. Delete `google_drive_token` from localStorage
 3. Restart the browser
 4. Get a new Client ID from Google Cloud Console
-5. Update `google-drive-config.js` with the new Client ID
+5. Update `google-drive.js` with the new Client ID (or save in Settings)
 6. Try again
 
 ## Getting Help

@@ -12,6 +12,35 @@ let timerStartTime = null
 let isTimerRunning = false
 let currentTaskName = ""
 
+// Update user info display from Google Drive authentication
+function updateUserInfoDisplay(userInfo) {
+  const userNameElement = document.getElementById('user-name');
+  const userEmailElement = document.getElementById('user-email');
+  const userAvatarElement = document.getElementById('user-avatar');
+  
+  if (userInfo && userInfo.name && userInfo.email) {
+    // Update name and email
+    userNameElement.textContent = userInfo.name;
+    userEmailElement.textContent = userInfo.email;
+    
+    // Update avatar if picture is available
+    if (userInfo.picture) {
+      userAvatarElement.style.backgroundImage = `url('${userInfo.picture}')`;
+      userAvatarElement.classList.remove('bg-gradient-to-br', 'from-blue-400', 'to-purple-500');
+    } else {
+      // Reset to gradient if no picture
+      userAvatarElement.style.backgroundImage = '';
+      userAvatarElement.classList.add('bg-gradient-to-br', 'from-blue-400', 'to-purple-500');
+    }
+  } else {
+    // Reset to defaults if no user info
+    userNameElement.textContent = 'User';
+    userEmailElement.textContent = 'user@email.com';
+    userAvatarElement.style.backgroundImage = '';
+    userAvatarElement.classList.add('bg-gradient-to-br', 'from-blue-400', 'to-purple-500');
+  }
+}
+
 // Array of motivational quotes to display
 const motivationalQuotes = [
   {
@@ -128,6 +157,18 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (apiKey) {
       updateGoogleDriveConfigWithKey(apiKey);
       console.log('Google Drive API key loaded from database');
+      
+      // Check for stored user info and update display
+      try {
+        if (typeof getUserInfo === 'function') {
+          const userInfo = await getUserInfo();
+          if (userInfo) {
+            updateUserInfoDisplay(userInfo);
+          }
+        }
+      } catch (error) {
+        console.log('Could not load user info:', error.message);
+      }
     }
   }, 1000);
 })
@@ -234,60 +275,93 @@ function setActiveNav(view) {
 
 // Show/hide main sections based on selected view
 function setActiveView(view) {
-  const dashboard = document.getElementById("dashboard-section");
-  const calendar = document.getElementById("calendar-section");
-  const timeTracker = document.getElementById("time-tracker-section");
-  const timeOverview = document.getElementById("time-overview-section");
-  const settings = document.getElementById("settings-section");
-
-  // Helper to show/hide
-  const show = (el) => el && el.classList.remove("hidden");
-  const hide = (el) => el && el.classList.add("hidden");
-
-  if (!dashboard || !calendar || !timeTracker || !timeOverview || !settings) {
-    return;
-  }
-
+  // Get all section elements
+  const dashboard = document.getElementById('dashboard-section')
+  const calendar = document.getElementById('calendar-section')
+  const timeTracker = document.getElementById('time-tracker-section')
+  const timeOverview = document.getElementById('time-overview-section')
+  const settings = document.getElementById('settings-section')
+  const help = document.getElementById('help-section')
+  const resetDb = document.getElementById('reset-database-section')
+  
   // Hide all sections first
-  hide(dashboard);
-  hide(calendar);
-  hide(timeTracker);
-  hide(timeOverview);
-  hide(settings);
-
+  dashboard.classList.add('hidden')
+  calendar.classList.add('hidden')
+  timeTracker.classList.add('hidden')
+  timeOverview.classList.add('hidden')
+  settings.classList.add('hidden')
+  help.classList.add('hidden')
+  resetDb.classList.add('hidden')
+  
+  // Show sections based on view
   switch (view) {
     case "tasks":
-      // My Tasks: everything except calendar and time tracker/overview
-      show(dashboard);
-      break;
+      // My Tasks: show only dashboard (ongoing tasks)
+      dashboard.classList.remove('hidden')
+      resetDb.classList.remove('hidden')
+      break
     case "calendar":
-      // Calendar only (keep header)
-      show(calendar);
-      break;
+      // Calendar only
+      calendar.classList.remove('hidden')
+      resetDb.classList.remove('hidden')
+      break
     case "time":
-      // Time Overview: time tracker + related statistics
-      show(timeTracker);
-      show(timeOverview);
-      break;
+      // Time Overview: time tracker + time overview
+      timeTracker.classList.remove('hidden')
+      timeOverview.classList.remove('hidden')
+      resetDb.classList.remove('hidden')
+      break
     case "settings":
       // Settings view
-      show(settings);
-      loadSettings();
-      break;
+      settings.classList.remove('hidden')
+      resetDb.classList.remove('hidden')
+      // Load settings when showing settings section
+      if (typeof loadSettings === 'function') {
+        loadSettings()
+      }
+      break
+    case "help":
+      // Help view
+      help.classList.remove('hidden')
+      resetDb.classList.remove('hidden')
+      break
     case "dashboard":
     default:
-      // Dashboard: everything visible
-      show(dashboard);
-      show(calendar);
-      show(timeTracker);
-      show(timeOverview);
-      break;
+      // Dashboard: show everything (dashboard, calendar, time tracker, time overview)
+      dashboard.classList.remove('hidden')
+      calendar.classList.remove('hidden')
+      timeTracker.classList.remove('hidden')
+      timeOverview.classList.remove('hidden')
+      resetDb.classList.remove('hidden')
+      break
   }
+  
+  // Update active nav
+  setActiveNav(view)
+}
 
-  setActiveNav(view);
+function showHelp() {
+  setActiveView('help')
 }
 
 // Set up event listeners for form submission, theme toggle, and expected tasks
+function focusOnOngoingTasks() {
+  // Scroll to the ongoing tasks section
+  const ongoingTasksSection = document.getElementById('ongoing-tasks')
+  if (ongoingTasksSection) {
+    ongoingTasksSection.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    
+    // Also focus on the task input field for quick entry
+    const taskInput = document.getElementById('task-input')
+    if (taskInput) {
+      taskInput.focus()
+    }
+    
+    // Set active view to dashboard (where ongoing tasks are)
+    setActiveView('dashboard')
+  }
+}
+
 function setupEventListeners() {
   document.getElementById("add-task-form").addEventListener("submit", (e) => {
     e.preventDefault()
@@ -916,6 +990,17 @@ function updateTimeTrackerDisplay() {
   updateTimePieChart();
 }
 
+// Start timer with specific task name
+function startTimerWithTask(taskName) {
+  const taskInput = document.getElementById("timer-task-input");
+  taskInput.value = taskName;
+  
+  if (isTimerRunning) {
+    stopTimer();
+  }
+  startTimer(taskName);
+}
+
 // Update task counters showing total time per task
 function updateTaskCounters() {
   const countersContainer = document.getElementById("task-counters");
@@ -953,6 +1038,11 @@ function updateTaskCounters() {
         <div class="flex items-center space-x-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
           <span class="flex-grow">${taskName}</span>
           <span class="text-sm text-gray-500 dark:text-gray-400">${formatTime(totalSeconds)}</span>
+          <button onclick="startTimerWithTask('${taskName.replace(/'/g, "\\'")}')" class="bg-green-500 hover:bg-green-600 text-white rounded p-1.5 ml-2" title="Start timer for this task">
+            <svg class="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"/>
+            </svg>
+          </button>
           <button onclick="deleteTaskTimeTracking('${taskName.replace(/'/g, "\\'")}')" class="bg-blue-500 hover:bg-blue-600 rounded p-1.5 ml-2" title="Delete task time tracking">
             <img src="${crossIcon}" class="h-3 w-3 scale-150" alt="Delete">
           </button>

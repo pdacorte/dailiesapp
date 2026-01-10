@@ -70,8 +70,8 @@
         <h2>Setup Instructions</h2>
         <ol>
             <li>Get your Google Drive API Client ID from <a href="https://console.cloud.google.com/" target="_blank">Google Cloud Console</a></li>
-            <li>Open <code>google-drive-config.js</code></li>
-            <li>Replace <code>YOUR_CLIENT_ID.apps.googleusercontent.com</code> with your actual Client ID</li>
+            <li>Open <code>google-drive.js</code> (or use Settings in the app)</li>
+            <li>Replace the Client ID with your actual Client ID (or save it in Settings)</li>
             <li>Make sure to add <code>http://localhost</code> to Authorized JavaScript origins</li>
             <li>Add <code>http://localhost/google-drive-callback.html</code> to Authorized redirect URIs</li>
         </ol>
@@ -91,9 +91,7 @@ const GOOGLE_DRIVE_CONFIG = {
 dailiesapp/
 ├── index.html              # Main app
 ├── app.js                  # Main JavaScript
-├── google-drive-config.js  # API configuration
-├── google-drive-operations.js # Drive operations
-├── google-drive-ui.js      # UI integration
+├── google-drive.js        # Google Drive API integration (merged file)
 ├── GOOGLE_DRIVE_SETUP.md   # Setup guide
 └── test-google-drive.html  # This test file
         </div>

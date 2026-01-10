@@ -88,9 +88,9 @@ node -c app.js
 - Consistent spacing using Tailwind's spacing scale
 
 **Google Drive Integration:**
-- Configuration in `google-drive-config.js` with placeholder for Client ID
-- Operations in `google-drive-operations.js` for file CRUD operations
-- UI integration in `google-drive-ui.js` with modal-based interface
+- Configuration, operations, and UI in `google-drive.js` (merged file)
+- Contains placeholder for Client ID
+- Handles file CRUD operations with modal-based interface
 - Follow OAuth 2.0 best practices with token storage in localStorage
 - Request minimal permissions: `drive.file`, `drive.appdata`, `profile`, `email`
 
@@ -135,9 +135,7 @@ dailiesapp/
 ├── icons/             # SVG icons
 │   ├── cross.svg
 │   └── whitecross.svg
-├── google-drive-config.js      # Google Drive API configuration
-├── google-drive-operations.js  # Google Drive file operations
-├── google-drive-ui.js          # Google Drive UI integration
+├── google-drive.js            # Google Drive API integration (merged file)
 ├── GOOGLE_DRIVE_SETUP.md       # Google Drive setup guide
 ├── documentation/     # Project documentation
 │   ├── shadcn.txt
@@ -300,7 +298,7 @@ Example: `feat: Add dark mode support for time tracking pie chart`
 1. Create Google Cloud project
 2. Enable Google Drive API
 3. Configure OAuth 2.0 credentials
-4. Update `google-drive-config.js` with Client ID
+4. Update `google-drive.js` with Client ID (or save in Settings)
 
 **Main Functions:**
 - `showGoogleDriveSyncModal()` - Shows Google Drive sync interface

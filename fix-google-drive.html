@@ -165,8 +165,7 @@
         </div>
     </div>
 
-    <script src="google-drive-config.js"></script>
-    <script src="google-drive-operations.js"></script>
+    <script src="google-drive.js"></script>
     
     <script>
         function showStatus(message, type = 'info') {
@@ -220,7 +219,7 @@
                     const result = testGoogleDriveSetup();
                     showStatus('✅ Test completed. Check browser console for details.', 'success');
                 } else {
-                    showStatus('❌ Test function not available. Make sure google-drive-config.js is loaded.', 'error');
+                    showStatus('❌ Test function not available. Make sure google-drive.js is loaded.', 'error');
                 }
             } catch (error) {
                 showStatus(`❌ Test failed: ${error.message}`, 'error');

@@ -52,8 +52,8 @@ Authorized redirect URIs:
 
 ## Step 6: Update Configuration
 
-1. Open `google-drive-config.js`
-2. Replace `YOUR_CLIENT_ID.apps.googleusercontent.com` with your actual Client ID:
+1. Open `google-drive.js` (or use Settings in the app)
+2. Replace the Client ID with your actual Client ID (or save it in Settings):
 ```javascript
 CLIENT_ID: 'xxxxxxxxxxxx-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.apps.googleusercontent.com',
 ```
