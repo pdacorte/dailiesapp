@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fix Google Drive Sync</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 30px;
+            margin: 20px 0;
+            border: 1px solid #e2e8f0;
+        }
+        h1 {
+            color: #1e293b;
+            margin-bottom: 20px;
+        }
+        h2 {
+            color: #334155;
+            margin-top: 30px;
+            margin-bottom: 15px;
+        }
+        .step {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 15px 0;
+            border-left: 4px solid #3b82f6;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .step-number {
+            display: inline-block;
+            background: #3b82f6;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 30px;
+            margin-right: 10px;
+            font-weight: bold;
+        }
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            margin: 10px 5px;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #2563eb;
+        }
+        button.secondary {
+            background: #64748b;
+        }
+        button.secondary:hover {
+            background: #475569;
+        }
+        button.danger {
+            background: #ef4444;
+        }
+        button.danger:hover {
+            background: #dc2626;
+        }
+        .success {
+            color: #10b981;
+            font-weight: 600;
+        }
+        .error {
+            color: #ef4444;
+            font-weight: 600;
+        }
+        .warning {
+            color: #f59e0b;
+            font-weight: 600;
+        }
+        .code {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+            margin: 15px 0;
+        }
+        .status {
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+            display: none;
+        }
+        .status.success {
+            background: #d1fae5;
+            border: 1px solid #a7f3d0;
+            color: #065f46;
+            display: block;
+        }
+        .status.error {
+            background: #fee2e2;
+            border: 1px solid #fecaca;
+            color: #991b1b;
+            display: block;
+        }
+        .status.info {
+            background: #dbeafe;
+            border: 1px solid #bfdbfe;
+            color: #1e40af;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Fix Google Drive Sync Issues</h1>
+        
+        <div id="status" class="status"></div>
+        
+        <h2>Quick Fix</h2>
+        <div class="step">
+            <p><span class="step-number">1</span> Clear existing Google Drive authentication data:</p>
+            <button onclick="clearAuthData()" class="danger">Clear Authentication Data</button>
+            <button onclick="checkStatus()" class="secondary">Check Current Status</button>
+        </div>
+        
+        <div class="step">
+            <p><span class="step-number">2</span> Test Google Drive setup:</p>
+            <button onclick="testSetup()">Test Google Drive Setup</button>
+            <button onclick="testAuthentication()" class="secondary">Test Authentication</button>
+        </div>
+        
+        <h2>Manual Steps</h2>
+        <div class="step">
+            <p><span class="step-number">1</span> Open browser console (F12) and run:</p>
+            <div class="code">testGoogleDriveSetup()</div>
+        </div>
+        
+        <div class="step">
+            <p><span class="step-number">2</span> If you see permission errors, run:</p>
+            <div class="code">clearStoredToken()</div>
+            <p>Then refresh the page and try signing in again.</p>
+        </div>
+        
+        <h2>Common Issues</h2>
+        <div class="step">
+            <p><strong>Error 403: "insufficient authentication scopes"</strong></p>
+            <p>This means the app needs updated permissions. Clear your authentication data and sign in again.</p>
+        </div>
+        
+        <div class="step">
+            <p><strong>Error: "Failed to get/create app folder"</strong></p>
+            <p>The app can't access Google Drive. Make sure you've granted all requested permissions.</p>
+        </div>
+    </div>
+
+    <script src="google-drive-config.js"></script>
+    <script src="google-drive-operations.js"></script>
+    
+    <script>
+        function showStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+            statusDiv.style.display = 'block';
+            
+            // Auto-hide success messages after 5 seconds
+            if (type === 'success') {
+                setTimeout(() => {
+                    statusDiv.style.display = 'none';
+                }, 5000);
+            }
+        }
+        
+        function clearAuthData() {
+            try {
+                // Clear localStorage items
+                localStorage.removeItem('google_drive_token');
+                localStorage.removeItem('google_drive_user_info');
+                
+                showStatus('✅ Authentication data cleared successfully! Please refresh the main app and sign in again.', 'success');
+            } catch (error) {
+                showStatus(`❌ Error clearing auth data: ${error.message}`, 'error');
+            }
+        }
+        
+        function checkStatus() {
+            try {
+                const token = localStorage.getItem('google_drive_token');
+                const userInfo = localStorage.getItem('google_drive_user_info');
+                
+                let message = 'Current Status:\n';
+                message += `• Token: ${token ? 'Present' : 'Not found'}\n`;
+                message += `• User Info: ${userInfo ? 'Present' : 'Not found'}`;
+                
+                if (token) {
+                    message += '\n\n⚠️ Token found. If you\'re having issues, try clearing it.';
+                }
+                
+                showStatus(message, 'info');
+            } catch (error) {
+                showStatus(`❌ Error checking status: ${error.message}`, 'error');
+            }
+        }
+        
+        function testSetup() {
+            try {
+                if (typeof testGoogleDriveSetup === 'function') {
+                    const result = testGoogleDriveSetup();
+                    showStatus('✅ Test completed. Check browser console for details.', 'success');
+                } else {
+                    showStatus('❌ Test function not available. Make sure google-drive-config.js is loaded.', 'error');
+                }
+            } catch (error) {
+                showStatus(`❌ Test failed: ${error.message}`, 'error');
+            }
+        }
+        
+        function testAuthentication() {
+            try {
+                if (typeof authenticateWithGoogleDrive === 'function') {
+                    showStatus('Testing authentication...', 'info');
+                    
+                    authenticateWithGoogleDrive()
+                        .then(token => {
+                            showStatus(`✅ Authentication successful! Token received.`, 'success');
+                        })
+                        .catch(error => {
+                            showStatus(`❌ Authentication failed: ${error.message}`, 'error');
+                        });
+                } else {
+                    showStatus('❌ Authentication function not available.', 'error');
+                }
+            } catch (error) {
+                showStatus(`❌ Test failed: ${error.message}`, 'error');
+            }
+        }
+        
+        // Initialize
+        showStatus('Ready to fix Google Drive sync issues. Click any button to start.', 'info');
+    </script>
+</body>
+</html>

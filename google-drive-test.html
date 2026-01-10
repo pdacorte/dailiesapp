@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Drive Setup Test - DailiesApp</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
+    <link href="output.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 800px;
+            width: 100%;
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: white;
+            padding: 32px;
+            text-align: center;
+        }
+        
+        .content {
+            padding: 32px;
+        }
+        
+        .step {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            border-left: 4px solid #4f46e5;
+        }
+        
+        .step-number {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            background: #4f46e5;
+            color: white;
+            border-radius: 50%;
+            font-weight: bold;
+            margin-right: 12px;
+        }
+        
+        .code-block {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 16px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            margin: 16px 0;
+            overflow-x: auto;
+        }
+        
+        .test-section {
+            background: #f0f9ff;
+            border: 2px dashed #0ea5e9;
+            border-radius: 12px;
+            padding: 24px;
+            margin-top: 32px;
+        }
+        
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: #4f46e5;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            text-decoration: none;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn:hover {
+            background: #4338ca;
+            transform: translateY(-2px);
+        }
+        
+        .btn-secondary {
+            background: #64748b;
+        }
+        
+        .btn-secondary:hover {
+            background: #475569;
+        }
+        
+        .status {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin: 16px 0;
+            font-weight: 500;
+        }
+        
+        .status-success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #a7f3d0;
+        }
+        
+        .status-error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+        
+        .status-info {
+            background: #dbeafe;
+            color: #1e40af;
+            border: 1px solid #bfdbfe;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 style="font-size: 32px; font-weight: 700; margin-bottom: 8px;">Google Drive Setup Test</h1>
+            <p style="opacity: 0.9; font-size: 18px;">Configure Google Drive Sync for DailiesApp</p>
+        </div>
+        
+        <div class="content">
+            <div class="step">
+                <h2 style="font-size: 24px; font-weight: 600; margin-bottom: 16px;">
+                    <span class="step-number">1</span> Get Google Cloud Credentials
+                </h2>
+                <p style="color: #64748b; margin-bottom: 16px; line-height: 1.6;">
+                    You need to create OAuth 2.0 credentials in Google Cloud Console.
+                </p>
+                <ol style="color: #475569; line-height: 1.8; padding-left: 20px; margin-bottom: 16px;">
+                    <li>Go to <a href="https://console.cloud.google.com/" target="_blank" style="color: #4f46e5; font-weight: 500;">Google Cloud Console</a></li>
+                    <li>Create a new project or select existing one</li>
+                    <li>Enable "Google Drive API" in the API Library</li>
+                    <li>Go to "Credentials" → "Create Credentials" → "OAuth client ID"</li>
+                    <li>Application type: "Web application"</li>
+                </ol>
+            </div>
+            
+            <div class="step">
+                <h2 style="font-size: 24px; font-weight: 600; margin-bottom: 16px;">
+                    <span class="step-number">2</span> Configure OAuth Consent Screen
+                </h2>
+                <p style="color: #64748b; margin-bottom: 16px; line-height: 1.6;">
+                    Set up the OAuth consent screen (required for testing).
+                </p>
+                <div class="code-block">
+                    // OAuth Consent Screen Configuration:<br>
+                    // 1. User Type: External<br>
+                    // 2. App Name: DailiesApp Test<br>
+                    // 3. User support email: your-email@gmail.com<br>
+                    // 4. Developer contact email: your-email@gmail.com<br>
+                    // 5. Scopes to add: ../auth/drive.file, ../auth/drive.appdata<br>
+                    // 6. Test users: Add your Google account email
+                </div>
+            </div>
+            
+            <div class="step">
+                <h2 style="font-size: 24px; font-weight: 600; margin-bottom: 16px;">
+                    <span class="step-number">3</span> Configure Authorized Domains
+                </h2>
+                <p style="color: #64748b; margin-bottom: 16px; line-height: 1.6;">
+                    Add these authorized JavaScript origins and redirect URIs:
+                </p>
+                <div class="code-block">
+                    Authorized JavaScript origins:<br>
+                    • http://localhost<br>
+                    • http://localhost:8080 (if using different port)<br>
+                    <br>
+                    Authorized redirect URIs:<br>
+                    • http://localhost/google-drive-callback.html<br>
+                    • http://localhost:8080/google-drive-callback.html
+                </div>
+            </div>
+            
+            <div class="step">
+                <h2 style="font-size: 24px; font-weight: 600; margin-bottom: 16px;">
+                    <span class="step-number">4</span> Copy Your Client ID
+                </h2>
+                <p style="color: #64748b; margin-bottom: 16px; line-height: 1.6;">
+                    After creating credentials, copy your Client ID (looks like):
+                </p>
+                <div class="code-block">
+                    1234567890-abcdefghijklmnopqrstuvwxyz.apps.googleusercontent.com
+                </div>
+                <p style="color: #64748b; margin-top: 16px; line-height: 1.6;">
+                    <strong>Note:</strong> This is an OAuth Client ID, not an API Key. API Keys start with "AIzaSy".
+                </p>
+            </div>
+            
+            <div class="test-section">
+                <h2 style="font-size: 24px; font-weight: 600; margin-bottom: 16px; color: #0ea5e9;">
+                    <span class="material-symbols-outlined" style="vertical-align: middle;">science</span>
+                    Test Your Configuration
+                </h2>
+                
+                <div id="test-status" class="status status-info">
+                    Ready to test Google Drive configuration...
+                </div>
+                
+                <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-top: 24px;">
+                    <button onclick="testConfiguration()" class="btn">
+                        <span class="material-symbols-outlined">play_arrow</span>
+                        Test Configuration
+                    </button>
+                    
+                    <button onclick="openMainApp()" class="btn btn-secondary">
+                        <span class="material-symbols-outlined">open_in_new</span>
+                        Open DailiesApp
+                    </button>
+                    
+                    <button onclick="clearTestData()" class="btn btn-secondary">
+                        <span class="material-symbols-outlined">delete</span>
+                        Clear Test Data
+                    </button>
+                </div>
+                
+                <div id="test-results" style="margin-top: 24px; display: none;">
+                    <h3 style="font-size: 18px; font-weight: 600; margin-bottom: 12px;">Test Results</h3>
+                    <pre id="results-output" style="background: #f1f5f9; padding: 16px; border-radius: 8px; font-family: monospace; max-height: 300px; overflow-y: auto;"></pre>
+                </div>
+            </div>
+            
+            <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #e2e8f0; text-align: center;">
+                <p style="color: #64748b;">
+                    Need help? Check the <a href="GOOGLE_DRIVE_SETUP.md" style="color: #4f46e5; font-weight: 500;">setup guide</a> or 
+                    <a href="index.html" style="color: #4f46e5; font-weight: 500;">return to DailiesApp</a>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script src="google-drive-config.js"></script>
+    <script>
+        function testConfiguration() {
+            const statusEl = document.getElementById('test-status');
+            const resultsEl = document.getElementById('test-results');
+            const outputEl = document.getElementById('results-output');
+            
+            statusEl.className = 'status status-info';
+            statusEl.textContent = 'Testing Google Drive configuration...';
+            resultsEl.style.display = 'block';
+            outputEl.textContent = 'Starting tests...\n\n';
+            
+            const tests = [
+                { name: 'Check if config file loaded', test: () => typeof GOOGLE_DRIVE_CONFIG !== 'undefined' },
+                { name: 'Check Client ID format', test: () => {
+                    if (!GOOGLE_DRIVE_CONFIG.CLIENT_ID) return 'NOT_CONFIGURED';
+                    if (GOOGLE_DRIVE_CONFIG.CLIENT_ID.includes('.apps.googleusercontent.com')) return 'VALID';
+                    if (GOOGLE_DRIVE_CONFIG.CLIENT_ID.startsWith('AIzaSy')) return 'API_KEY_NOT_CLIENT_ID';
+                    return 'INVALID_FORMAT';
+                }},
+                { name: 'Check test mode', test: () => GOOGLE_DRIVE_CONFIG.TEST_MODE === true },
+                { name: 'Check if update function exists', test: () => typeof updateGoogleDriveConfig === 'function' },
+                { name: 'Check if initialization functions exist', test: () => typeof initializeGoogleApis === 'function' }
+            ];
+            
+            let passed = 0;
+            let failed = 0;
+            
+            tests.forEach((test, index) => {
+                setTimeout(() => {
+                    try {
+                        const result = test.test();
+                        let message = `✓ ${test.name}: `;
+                        
+                        if (typeof result === 'boolean') {
+                            if (result) {
+                                message += 'PASS';
+                                passed++;
+                            } else {
+                                message += 'FAIL';
+                                failed++;
+                            }
+                        } else if (result === 'VALID') {
+                            message += 'PASS (Valid Client ID)';
+                            passed++;
+                        } else if (result === 'NOT_CONFIGURED') {
+                            message += 'INFO (Client ID not configured - use Settings in main app)';
+                        } else if (result === 'API_KEY_NOT_CLIENT_ID') {
+                            message += 'FAIL (This is an API Key, not an OAuth Client ID)';
+                            failed++;
+                        } else if (result === 'INVALID_FORMAT') {
+                            message += 'FAIL (Invalid Client ID format)';
+                            failed++;
+                        } else {
+                            message += `RESULT: ${result}`;
+                        }
+                        
+                        outputEl.textContent += message + '\n';
+                        
+                        // Update status after last test
+                        if (index === tests.length - 1) {
+                            if (failed === 0) {
+                                statusEl.className = 'status status-success';
+                                statusEl.textContent = `All tests passed! ${passed} tests successful.`;
+                            } else {
+                                statusEl.className = 'status status-error';
+                                statusEl.textContent = `${failed} test(s) failed. Check the results above.`;
+                            }
+                        }
+                    } catch (error) {
+                        outputEl.textContent += `✗ ${test.name}: ERROR - ${error.message}\n`;
+                        failed++;
+                    }
+                }, index * 500);
+            });
+        }
+        
+        function openMainApp() {
+            window.open('index.html', '_blank');
+        }
+        
+        function clearTestData() {
+            localStorage.removeItem('google_drive_token');
+            localStorage.removeItem('google_drive_user_info');
+            localStorage.removeItem('dailiesapp_google_drive_api_key');
+            
+            const statusEl = document.getElementById('test-status');
+            statusEl.className = 'status status-info';
+            statusEl.textContent = 'Test data cleared. You can start fresh.';
+            
+            const outputEl = document.getElementById('results-output');
+            outputEl.textContent = 'Cleared:\n• Google Drive tokens\n• User info\n• API key from localStorage\n\nReady for new tests.';
+            document.getElementById('test-results').style.display = 'block';
+        }
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('Google Drive Test Page Loaded');
+            console.log('Configuration:', GOOGLE_DRIVE_CONFIG);
+        });
+    </script>
+</body>
+</html>

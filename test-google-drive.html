@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Drive Sync Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .test-section {
+            background: #f5f5f5;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .success { color: #10b981; }
+        .error { color: #ef4444; }
+        .warning { color: #f59e0b; }
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #2563eb;
+        }
+        .code {
+            background: #1f2937;
+            color: #e5e7eb;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Google Drive Sync Test</h1>
+    
+    <div class="test-section">
+        <h2>Test 1: Configuration Check</h2>
+        <div id="test1-result">Running...</div>
+        <button onclick="testConfiguration()">Run Test</button>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test 2: API Loading</h2>
+        <div id="test2-result">Ready to test</div>
+        <button onclick="testApiLoading()">Load Google APIs</button>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test 3: UI Integration</h2>
+        <div id="test3-result">Ready to test</div>
+        <button onclick="testUiIntegration()">Test UI Functions</button>
+    </div>
+    
+    <div class="test-section">
+        <h2>Setup Instructions</h2>
+        <ol>
+            <li>Get your Google Drive API Client ID from <a href="https://console.cloud.google.com/" target="_blank">Google Cloud Console</a></li>
+            <li>Open <code>google-drive-config.js</code></li>
+            <li>Replace <code>YOUR_CLIENT_ID.apps.googleusercontent.com</code> with your actual Client ID</li>
+            <li>Make sure to add <code>http://localhost</code> to Authorized JavaScript origins</li>
+            <li>Add <code>http://localhost/google-drive-callback.html</code> to Authorized redirect URIs</li>
+        </ol>
+        
+        <div class="code">
+// Your configuration should look like:
+const GOOGLE_DRIVE_CONFIG = {
+  CLIENT_ID: '1234567890-abcdefghijklmnopqrstuvwxyz.apps.googleusercontent.com',
+  // ... rest of configuration
+};
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Expected File Structure</h2>
+        <div class="code">
+dailiesapp/
+├── index.html              # Main app
+├── app.js                  # Main JavaScript
+├── google-drive-config.js  # API configuration
+├── google-drive-operations.js # Drive operations
+├── google-drive-ui.js      # UI integration
+├── GOOGLE_DRIVE_SETUP.md   # Setup guide
+└── test-google-drive.html  # This test file
+        </div>
+    </div>
+    
+    <script>
+        async function testConfiguration() {
+            const result = document.getElementById('test1-result');
+            try {
+                // Check if config file is loaded
+                if (typeof GOOGLE_DRIVE_CONFIG === 'undefined') {
+                    result.innerHTML = '<span class="error">❌ Configuration not loaded</span>';
+                    return;
+                }
+                
+                // Check client ID
+                const clientId = GOOGLE_DRIVE_CONFIG.CLIENT_ID;
+                if (clientId.includes('YOUR_CLIENT_ID')) {
+                    result.innerHTML = '<span class="warning">⚠️ Using placeholder Client ID. Update with your actual Client ID.</span>';
+                } else if (clientId.includes('.apps.googleusercontent.com')) {
+                    result.innerHTML = '<span class="success">✅ Valid Client ID format detected</span>';
+                } else {
+                    result.innerHTML = '<span class="error">❌ Invalid Client ID format</span>';
+                }
+            } catch (error) {
+                result.innerHTML = `<span class="error">❌ Error: ${error.message}</span>`;
+            }
+        }
+        
+        async function testApiLoading() {
+            const result = document.getElementById('test2-result');
+            result.innerHTML = 'Loading Google APIs...';
+            
+            try {
+                if (typeof initializeGoogleApis === 'undefined') {
+                    result.innerHTML = '<span class="error">❌ Google API functions not loaded</span>';
+                    return;
+                }
+                
+                await initializeGoogleApis();
+                
+                if (typeof gapi !== 'undefined' && typeof google !== 'undefined') {
+                    result.innerHTML = '<span class="success">✅ Google APIs loaded successfully</span>';
+                } else {
+                    result.innerHTML = '<span class="error">❌ Google APIs not properly initialized</span>';
+                }
+            } catch (error) {
+                result.innerHTML = `<span class="error">❌ Failed to load Google APIs: ${error.message}</span>`;
+            }
+        }
+        
+        function testUiIntegration() {
+            const result = document.getElementById('test3-result');
+            
+            // Check if UI functions are available
+            const requiredFunctions = [
+                'showGoogleDriveSyncModal',
+                'closeGoogleDriveModal',
+                'signInToGoogleDrive',
+                'uploadBackupToDrive'
+            ];
+            
+            const missingFunctions = requiredFunctions.filter(fn => typeof window[fn] === 'undefined');
+            
+            if (missingFunctions.length === 0) {
+                result.innerHTML = '<span class="success">✅ All UI functions available</span>';
+            } else {
+                result.innerHTML = `<span class="error">❌ Missing functions: ${missingFunctions.join(', ')}</span>`;
+            }
+        }
+        
+        // Run initial tests
+        setTimeout(() => {
+            testConfiguration();
+        }, 100);
+    </script>
+</body>
+</html>

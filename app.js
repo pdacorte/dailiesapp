@@ -1,7 +1,7 @@
 // Initialize database connection and global variables
 let db
 const dbName = "dailiesDB"
-const dbVersion = 2
+const dbVersion = 3
 let currentChart = null
 let currentPieChart = null
 let expectedTasksPerDay = 1
@@ -113,13 +113,27 @@ const motivationalQuotes = [
 ]
 
 // Set up initial theme and database when page loads
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
   const savedTheme = localStorage.getItem("theme") || "light"
   document.documentElement.classList.toggle("dark", savedTheme === "dark")
   initializeSidebar()
   initializeDB()
   setupEventListeners()
+  checkAutoBackup()
+  setupAutoSave()
+  
+  // Load Google Drive API key on startup
+  setTimeout(async () => {
+    const apiKey = await loadGoogleDriveApiKey();
+    if (apiKey) {
+      updateGoogleDriveConfigWithKey(apiKey);
+      console.log('Google Drive API key loaded from database');
+    }
+  }, 1000);
 })
+
+// Make database accessible to Google Drive functions
+window.getDatabase = () => db;
 
 // Initialize IndexedDB database and create object stores if needed
 function initializeDB() {
@@ -149,6 +163,12 @@ function initializeDB() {
       timeStore.createIndex("taskName", "taskName")
       timeStore.createIndex("timestamp", "timestamp")
       console.log("Created timeTracking store and indexes")
+    }
+
+    // Create settings object store
+    if (!db.objectStoreNames.contains("settings")) {
+      const settingsStore = db.createObjectStore("settings", { keyPath: "key" })
+      console.log("Created settings store")
     }
   }
 
@@ -218,36 +238,41 @@ function setActiveView(view) {
   const calendar = document.getElementById("calendar-section");
   const timeTracker = document.getElementById("time-tracker-section");
   const timeOverview = document.getElementById("time-overview-section");
+  const settings = document.getElementById("settings-section");
 
   // Helper to show/hide
   const show = (el) => el && el.classList.remove("hidden");
   const hide = (el) => el && el.classList.add("hidden");
 
-  if (!dashboard || !calendar || !timeTracker || !timeOverview) {
+  if (!dashboard || !calendar || !timeTracker || !timeOverview || !settings) {
     return;
   }
+
+  // Hide all sections first
+  hide(dashboard);
+  hide(calendar);
+  hide(timeTracker);
+  hide(timeOverview);
+  hide(settings);
 
   switch (view) {
     case "tasks":
       // My Tasks: everything except calendar and time tracker/overview
       show(dashboard);
-      hide(calendar);
-      hide(timeTracker);
-      hide(timeOverview);
       break;
     case "calendar":
       // Calendar only (keep header)
-      hide(dashboard);
       show(calendar);
-      hide(timeTracker);
-      hide(timeOverview);
       break;
     case "time":
       // Time Overview: time tracker + related statistics
-      hide(dashboard);
-      hide(calendar);
       show(timeTracker);
       show(timeOverview);
+      break;
+    case "settings":
+      // Settings view
+      show(settings);
+      loadSettings();
       break;
     case "dashboard":
     default:
@@ -1130,8 +1155,766 @@ function updateTimePieChart() {
     });
   };
 
-  request.onerror = (event) => {
-    console.error("Error fetching time tracking data for pie chart:", event.target.error);
-  };
+   request.onerror = (event) => {
+     console.error("Error fetching time tracking data for pie chart:", event.target.error);
+   };
+ }
+
+// Database Export/Import Functions
+
+// Export all database data as JSON
+async function exportDatabase() {
+  if (!db) {
+    showNotification("Database not initialized. Please wait for the app to load.", "error");
+    return;
+  }
+
+  // Show loading state
+  const exportButton = document.querySelector('a[onclick="exportDatabase()"]');
+  if (exportButton) {
+    const originalHTML = exportButton.innerHTML;
+    exportButton.innerHTML = '<span class="material-symbols-outlined">hourglass_empty</span><span class="sidebar-text">Exporting...</span>';
+    exportButton.style.pointerEvents = 'none';
+  }
+
+  try {
+    const exportData = {
+      version: "1.0",
+      exportDate: new Date().toISOString(),
+      appVersion: "1.0",
+      tasks: [],
+      timeTracking: []
+    };
+
+    // Export tasks with error handling for each transaction
+    const tasks = await new Promise((resolve, reject) => {
+      try {
+        const transaction = db.transaction(["tasks"], "readonly");
+        const taskStore = transaction.objectStore("tasks");
+        const request = taskStore.getAll();
+        
+        request.onsuccess = () => {
+          if (request.result) {
+            resolve(request.result);
+          } else {
+            reject(new Error("Failed to retrieve tasks"));
+          }
+        };
+        request.onerror = () => reject(new Error(`Task export failed: ${request.error?.message || "Unknown error"}`));
+        
+        transaction.onerror = () => reject(new Error(`Transaction failed: ${transaction.error?.message || "Unknown error"}`));
+      } catch (error) {
+        reject(new Error(`Export setup failed: ${error.message}`));
+      }
+    });
+
+    // Export time tracking
+    const timeTracking = await new Promise((resolve, reject) => {
+      try {
+        const transaction = db.transaction(["timeTracking"], "readonly");
+        const timeStore = transaction.objectStore("timeTracking");
+        const request = timeStore.getAll();
+        
+        request.onsuccess = () => {
+          if (request.result) {
+            resolve(request.result);
+          } else {
+            reject(new Error("Failed to retrieve time tracking"));
+          }
+        };
+        request.onerror = () => reject(new Error(`Time tracking export failed: ${request.error?.message || "Unknown error"}`));
+        
+        transaction.onerror = () => reject(new Error(`Transaction failed: ${transaction.error?.message || "Unknown error"}`));
+      } catch (error) {
+        reject(new Error(`Export setup failed: ${error.message}`));
+      }
+    });
+
+    // Validate exported data
+    if (!Array.isArray(tasks) || !Array.isArray(timeTracking)) {
+      throw new Error("Exported data is not in expected format");
+    }
+
+    exportData.tasks = tasks;
+    exportData.timeTracking = timeTracking;
+
+    // Create JSON string with error handling for circular references
+    const jsonString = JSON.stringify(exportData, null, 2);
+    
+    // Validate JSON
+    try {
+      JSON.parse(jsonString);
+    } catch (error) {
+      throw new Error("Generated JSON is invalid");
+    }
+    
+    // Create download link
+    const blob = new Blob([jsonString], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `dailiesapp-backup-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    
+    // Cleanup
+    setTimeout(() => {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 100);
+
+    // Also save to localStorage as backup
+    localStorage.setItem('dailiesapp_last_export', jsonString);
+    localStorage.setItem('dailiesapp_last_export_date', new Date().toISOString());
+
+    showNotification(`Successfully exported ${tasks.length} tasks and ${timeTracking.length} time tracking entries. File downloaded automatically.`, "success");
+    
+  } catch (error) {
+    console.error("Error exporting database:", error);
+    showNotification(`Export failed: ${error.message}`, "error");
+  } finally {
+    // Restore button state
+    if (exportButton) {
+      exportButton.innerHTML = '<span class="material-symbols-outlined">download</span><span class="sidebar-text">Export Data</span>';
+      exportButton.style.pointerEvents = 'auto';
+    }
+  }
 }
+
+// Helper function to show notifications
+function showNotification(message, type = "info") {
+  // Remove any existing notification
+  const existingNotification = document.getElementById('export-import-notification');
+  if (existingNotification) {
+    existingNotification.remove();
+  }
+
+  // Create notification element
+  const notification = document.createElement('div');
+  notification.id = 'export-import-notification';
+  notification.className = `fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg ${
+    type === 'success' ? 'bg-green-100 text-green-800 border border-green-200' :
+    type === 'error' ? 'bg-red-100 text-red-800 border border-red-200' :
+    'bg-blue-100 text-blue-800 border border-blue-200'
+  }`;
+  notification.innerHTML = `
+    <div class="flex items-center">
+      <span class="material-symbols-outlined mr-2">
+        ${type === 'success' ? 'check_circle' : type === 'error' ? 'error' : 'info'}
+      </span>
+      <span>${message}</span>
+    </div>
+  `;
+
+  document.body.appendChild(notification);
+
+  // Auto-remove after 5 seconds
+  setTimeout(() => {
+    if (notification.parentNode) {
+      notification.remove();
+    }
+  }, 5000);
+}
+
+// Import database from JSON file
+function importDatabase() {
+  if (!db) {
+    alert("Database not initialized. Please wait for the app to load.");
+    return;
+  }
+
+  // Create file input element
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = ".json";
+  input.style.display = "none";
+  
+  input.onchange = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Show loading indicator
+    const originalButton = event.target;
+    if (originalButton) {
+      originalButton.disabled = true;
+      originalButton.innerHTML = '<span class="material-symbols-outlined">hourglass_empty</span><span class="sidebar-text">Importing...</span>';
+    }
+
+    try {
+      const text = await file.text();
+      const importData = JSON.parse(text);
+      
+      // Validate import data structure
+      if (!importData.version || !importData.tasks || !importData.timeTracking) {
+        throw new Error("Invalid backup file format. Expected fields: version, tasks, timeTracking");
+      }
+
+      // Validate data types
+      if (!Array.isArray(importData.tasks) || !Array.isArray(importData.timeTracking)) {
+        throw new Error("Invalid data structure: tasks and timeTracking must be arrays");
+      }
+
+      // Check for required fields in tasks
+      for (const task of importData.tasks) {
+        if (!task.title || typeof task.title !== 'string') {
+          throw new Error("Invalid task data: missing or invalid title");
+        }
+        if (!['Goal', 'Non-Negotiable'].includes(task.type)) {
+          throw new Error("Invalid task data: type must be 'Goal' or 'Non-Negotiable'");
+        }
+      }
+
+      // Check for required fields in time tracking
+      for (const entry of importData.timeTracking) {
+        if (!entry.taskName || typeof entry.taskName !== 'string') {
+          throw new Error("Invalid time tracking data: missing or invalid taskName");
+        }
+        if (typeof entry.seconds !== 'number' || entry.seconds < 0) {
+          throw new Error("Invalid time tracking data: seconds must be a non-negative number");
+        }
+      }
+
+      if (!confirm(`This will import ${importData.tasks.length} tasks and ${importData.timeTracking.length} time tracking entries. This will replace your current data. Continue?`)) {
+        return;
+      }
+
+      // Clear existing data first
+      await clearDatabase();
+      
+      // Import tasks in batches to avoid transaction timeouts
+      const batchSize = 50;
+      for (let i = 0; i < importData.tasks.length; i += batchSize) {
+        const batch = importData.tasks.slice(i, i + batchSize);
+        await Promise.all(batch.map(task => 
+          new Promise((resolve, reject) => {
+            const transaction = db.transaction(["tasks"], "readwrite");
+            const taskStore = transaction.objectStore("tasks");
+            const request = taskStore.add(task);
+            
+            request.onsuccess = () => resolve();
+            request.onerror = () => reject(request.error);
+          })
+        ));
+      }
+
+      // Import time tracking in batches
+      for (let i = 0; i < importData.timeTracking.length; i += batchSize) {
+        const batch = importData.timeTracking.slice(i, i + batchSize);
+        await Promise.all(batch.map(entry => 
+          new Promise((resolve, reject) => {
+            const transaction = db.transaction(["timeTracking"], "readwrite");
+            const timeStore = transaction.objectStore("timeTracking");
+            const request = timeStore.add(entry);
+            
+            request.onsuccess = () => resolve();
+            request.onerror = () => reject(request.error);
+          })
+        ));
+      }
+
+      alert(`Successfully imported ${importData.tasks.length} tasks and ${importData.timeTracking.length} time tracking entries! Refreshing display...`);
+      updateDisplay();
+      updateTimeTrackerDisplay();
+      
+    } catch (error) {
+      console.error("Error importing database:", error);
+      alert(`Error importing database: ${error.message}\n\nPlease ensure you're importing a valid DailiesApp backup file.`);
+    } finally {
+      // Restore button state
+      if (originalButton) {
+        originalButton.disabled = false;
+        originalButton.innerHTML = '<span class="material-symbols-outlined">upload</span><span class="sidebar-text">Import Data</span>';
+      }
+      document.body.removeChild(input);
+    }
+  };
+
+  document.body.appendChild(input);
+  input.click();
+}
+
+// Clear all database data
+async function clearDatabase() {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(["tasks", "timeTracking"], "readwrite");
+    
+    // Clear tasks
+    const taskStore = transaction.objectStore("tasks");
+    const taskRequest = taskStore.clear();
+    
+    // Clear time tracking
+    const timeStore = transaction.objectStore("timeTracking");
+    const timeRequest = timeStore.clear();
+    
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error);
+  });
+}
+
+// Cloud sync functionality - Direct Google Drive sync
+async function syncWithCloud() {
+  console.log('Cloud sync button clicked');
+  
+  if (!db) {
+    console.error('Database not initialized');
+    alert("Database not initialized. Please wait for the app to load.");
+    return;
+  }
+
+  // Check if Google Drive API key is configured
+  const apiKey = await loadGoogleDriveApiKey();
+  console.log('Loaded API key:', apiKey ? 'Yes' : 'No');
+  
+  if (!apiKey) {
+    alert("Google Drive API key not configured. Please go to Settings to add your Google Drive API Client ID.");
+    return;
+  }
+
+  // Update Google Drive configuration with the API key
+  updateGoogleDriveConfig(apiKey);
+  console.log('Google Drive config updated');
+
+  // Check if Google Drive functions are available
+  if (typeof showGoogleDriveSyncModal !== 'function') {
+    console.error('showGoogleDriveSyncModal function not found');
+    alert('Google Drive sync is not available. Please make sure all scripts are loaded and refresh the page.');
+    return;
+  }
+
+  // Check if Google APIs are initialized
+  if (typeof areGoogleApisInitialized === 'function' && !areGoogleApisInitialized()) {
+    console.log('Google APIs not initialized, attempting to initialize...');
+    try {
+      if (typeof initializeGoogleApis === 'function') {
+        await initializeGoogleApis();
+        console.log('Google APIs initialized successfully');
+      }
+    } catch (error) {
+      console.error('Failed to initialize Google APIs:', error);
+      alert(`Failed to initialize Google Drive: ${error.message}. Please check your API key and internet connection.`);
+      return;
+    }
+  }
+
+  // Show Google Drive sync modal directly
+  console.log('Showing Google Drive sync modal');
+  showGoogleDriveSyncModal();
+}
+
+// Save data to cloud (copy to clipboard as JSON)
+async function saveToCloud() {
+  try {
+    const exportData = {
+      version: "1.0",
+      exportDate: new Date().toISOString(),
+      tasks: [],
+      timeTracking: []
+    };
+
+    // Export tasks
+    const tasks = await new Promise((resolve, reject) => {
+      const transaction = db.transaction(["tasks"], "readonly");
+      const taskStore = transaction.objectStore("tasks");
+      const request = taskStore.getAll();
+      
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+
+    // Export time tracking
+    const timeTracking = await new Promise((resolve, reject) => {
+      const transaction = db.transaction(["timeTracking"], "readonly");
+      const timeStore = transaction.objectStore("timeTracking");
+      const request = timeStore.getAll();
+      
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+
+    exportData.tasks = tasks;
+    exportData.timeTracking = timeTracking;
+
+    // Create JSON string
+    const jsonString = JSON.stringify(exportData, null, 2);
+    
+    // Copy to clipboard
+    await navigator.clipboard.writeText(jsonString);
+    
+    // Also save to localStorage as backup
+    localStorage.setItem('dailiesapp_cloud_backup', jsonString);
+    localStorage.setItem('dailiesapp_cloud_backup_date', new Date().toISOString());
+    
+    alert(`Successfully saved ${tasks.length} tasks and ${timeTracking.length} time tracking entries to clipboard and local storage!\n\nJSON data has been copied to your clipboard. You can paste it into a text file or cloud storage.`);
+    
+  } catch (error) {
+    console.error("Error saving to cloud:", error);
+    alert("Error saving to cloud. Please check console for details.");
+  }
+}
+
+// Load data from cloud (paste from clipboard)
+async function loadFromCloud() {
+  try {
+    // Try to get data from clipboard first
+    const clipboardText = await navigator.clipboard.readText();
+    
+    if (!clipboardText || !clipboardText.trim()) {
+      // If clipboard is empty, try localStorage
+      const storedData = localStorage.getItem('dailiesapp_cloud_backup');
+      if (!storedData) {
+        throw new Error("No cloud data found in clipboard or local storage.");
+      }
+      
+      if (!confirm("Found backup data in local storage. Load this data?")) {
+        return;
+      }
+      
+      await importFromJSONString(storedData);
+      return;
+    }
+    
+    // Check if clipboard text looks like JSON
+    if (!clipboardText.trim().startsWith('{') || !clipboardText.includes('"version"')) {
+      throw new Error("Clipboard doesn't contain valid DailiesApp backup data.");
+    }
+    
+    if (!confirm("Found data in clipboard. Load this data?")) {
+      return;
+    }
+    
+    await importFromJSONString(clipboardText);
+    
+  } catch (error) {
+    console.error("Error loading from cloud:", error);
+    alert(`Error loading from cloud: ${error.message}\n\nMake sure you have copied valid DailiesApp backup data to your clipboard.`);
+  }
+}
+
+// Import from JSON string (shared function)
+async function importFromJSONString(jsonString) {
+  try {
+    const importData = JSON.parse(jsonString);
+    
+    // Validate import data structure
+    if (!importData.version || !importData.tasks || !importData.timeTracking) {
+      throw new Error("Invalid backup data format");
+    }
+
+    if (!Array.isArray(importData.tasks) || !Array.isArray(importData.timeTracking)) {
+      throw new Error("Invalid data structure");
+    }
+
+    if (!confirm(`This will import ${importData.tasks.length} tasks and ${importData.timeTracking.length} time tracking entries. This will replace your current data. Continue?`)) {
+      return;
+    }
+
+    // Clear existing data first
+    await clearDatabase();
+    
+    // Import tasks
+    const batchSize = 50;
+    for (let i = 0; i < importData.tasks.length; i += batchSize) {
+      const batch = importData.tasks.slice(i, i + batchSize);
+      await Promise.all(batch.map(task => 
+        new Promise((resolve, reject) => {
+          const transaction = db.transaction(["tasks"], "readwrite");
+          const taskStore = transaction.objectStore("tasks");
+          const request = taskStore.add(task);
+          
+          request.onsuccess = () => resolve();
+          request.onerror = () => reject(request.error);
+        })
+      ));
+    }
+
+    // Import time tracking
+    for (let i = 0; i < importData.timeTracking.length; i += batchSize) {
+      const batch = importData.timeTracking.slice(i, i + batchSize);
+      await Promise.all(batch.map(entry => 
+        new Promise((resolve, reject) => {
+          const transaction = db.transaction(["timeTracking"], "readwrite");
+          const timeStore = transaction.objectStore("timeTracking");
+          const request = timeStore.add(entry);
+          
+          request.onsuccess = () => resolve();
+          request.onerror = () => reject(request.error);
+        })
+      ));
+    }
+
+    // Save to localStorage as well
+    localStorage.setItem('dailiesapp_cloud_backup', jsonString);
+    localStorage.setItem('dailiesapp_cloud_backup_date', new Date().toISOString());
+    
+    alert(`Successfully imported ${importData.tasks.length} tasks and ${importData.timeTracking.length} time tracking entries from cloud!`);
+    updateDisplay();
+    updateTimeTrackerDisplay();
+    
+  } catch (error) {
+    throw new Error(`Failed to import data: ${error.message}`);
+  }
+}
+
+// Auto-save to localStorage periodically
+function setupAutoSave() {
+  // Auto-save every 5 minutes
+  setInterval(async () => {
+    if (!db) return;
+    
+    try {
+      const exportData = {
+        version: "1.0",
+        exportDate: new Date().toISOString(),
+        tasks: [],
+        timeTracking: []
+      };
+
+      const tasks = await new Promise((resolve, reject) => {
+        const transaction = db.transaction(["tasks"], "readonly");
+        const taskStore = transaction.objectStore("tasks");
+        const request = taskStore.getAll();
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+
+      const timeTracking = await new Promise((resolve, reject) => {
+        const transaction = db.transaction(["timeTracking"], "readonly");
+        const timeStore = transaction.objectStore("timeTracking");
+        const request = timeStore.getAll();
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+
+      exportData.tasks = tasks;
+      exportData.timeTracking = timeTracking;
+
+      const jsonString = JSON.stringify(exportData);
+      localStorage.setItem('dailiesapp_auto_backup', jsonString);
+      localStorage.setItem('dailiesapp_auto_backup_date', new Date().toISOString());
+      
+      console.log(`Auto-saved ${tasks.length} tasks and ${timeTracking.length} time entries`);
+    } catch (error) {
+      console.error("Auto-save failed:", error);
+    }
+  }, 5 * 60 * 1000); // 5 minutes
+}
+
+ // Check for auto-backup on startup
+function checkAutoBackup() {
+  const backupDate = localStorage.getItem('dailiesapp_auto_backup_date');
+  if (backupDate) {
+    const backupTime = new Date(backupDate);
+    const now = new Date();
+    const hoursDiff = (now - backupTime) / (1000 * 60 * 60);
+    
+    if (hoursDiff < 24) { // Backup is less than 24 hours old
+      console.log(`Auto-backup available from ${backupTime.toLocaleString()}`);
+    }
+  }
+}
+
+// Google Drive API Key Functions
+
+// Save Google Drive API key to database
+async function saveGoogleDriveApiKey() {
+  const apiKeyInput = document.getElementById('google-drive-api-key');
+  const apiKey = apiKeyInput.value.trim();
+  
+  if (!apiKey) {
+    showApiKeyStatus('Please enter a valid Google Drive API Client ID', 'error');
+    return;
+  }
+  
+  if (!db) {
+    showApiKeyStatus('Database not initialized. Please wait for the app to load.', 'error');
+    return;
+  }
+  
+  try {
+    const transaction = db.transaction(['settings'], 'readwrite');
+    const settingsStore = transaction.objectStore('settings');
+    
+    const setting = {
+      key: 'googleDriveApiKey',
+      value: apiKey,
+      updatedAt: new Date().toISOString()
+    };
+    
+    const request = settingsStore.put(setting);
+    
+    request.onsuccess = () => {
+      showApiKeyStatus('Google Drive API key saved successfully!', 'success');
+      apiKeyInput.value = ''; // Clear the input for security
+      
+      // Update Google Drive configuration
+      updateGoogleDriveConfigWithKey(apiKey);
+    };
+    
+    request.onerror = (event) => {
+      console.error('Error saving API key:', event.target.error);
+      showApiKeyStatus('Error saving API key. Please try again.', 'error');
+    };
+    
+  } catch (error) {
+    console.error('Error saving API key:', error);
+    showApiKeyStatus('Error saving API key. Please try again.', 'error');
+  }
+}
+
+// Load Google Drive API key from database
+async function loadGoogleDriveApiKey() {
+  if (!db) {
+    console.error('Database not initialized');
+    return null;
+  }
+  
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(['settings'], 'readonly');
+    const settingsStore = transaction.objectStore('settings');
+    const request = settingsStore.get('googleDriveApiKey');
+    
+    request.onsuccess = () => {
+      if (request.result) {
+        resolve(request.result.value);
+      } else {
+        resolve(null);
+      }
+    };
+    
+    request.onerror = (event) => {
+      console.error('Error loading API key:', event.target.error);
+      reject(event.target.error);
+    };
+  });
+}
+
+// Clear Google Drive API key from database
+async function clearGoogleDriveApiKey() {
+  if (!confirm('Are you sure you want to clear your Google Drive API key? This will disable Google Drive sync.')) {
+    return;
+  }
+  
+  if (!db) {
+    showApiKeyStatus('Database not initialized. Please wait for the app to load.', 'error');
+    return;
+  }
+  
+  try {
+    const transaction = db.transaction(['settings'], 'readwrite');
+    const settingsStore = transaction.objectStore('settings');
+    const request = settingsStore.delete('googleDriveApiKey');
+    
+    request.onsuccess = () => {
+      showApiKeyStatus('Google Drive API key cleared successfully.', 'success');
+      document.getElementById('google-drive-api-key').value = '';
+      
+      // Clear Google Drive configuration
+      updateGoogleDriveConfig('');
+    };
+    
+    request.onerror = (event) => {
+      console.error('Error clearing API key:', event.target.error);
+      showApiKeyStatus('Error clearing API key. Please try again.', 'error');
+    };
+    
+  } catch (error) {
+    console.error('Error clearing API key:', error);
+    showApiKeyStatus('Error clearing API key. Please try again.', 'error');
+  }
+}
+
+// Test Google Drive API key connection
+async function testGoogleDriveApiKey() {
+  const apiKey = await loadGoogleDriveApiKey();
+  
+  if (!apiKey) {
+    showApiKeyStatus('No API key found. Please save your Google Drive API key first.', 'error');
+    return;
+  }
+  
+  showApiKeyStatus('Testing Google Drive API connection...', 'info');
+  
+  // Update configuration with the loaded key
+  updateGoogleDriveConfigWithKey(apiKey);
+  
+  // Test by trying to initialize Google APIs
+  try {
+    if (typeof initializeGoogleApis === 'function') {
+      await initializeGoogleApis();
+      showApiKeyStatus('Google Drive API connection successful!', 'success');
+    } else {
+      showApiKeyStatus('Google Drive API functions not loaded. Please refresh the page.', 'error');
+    }
+  } catch (error) {
+    console.error('Error testing API key:', error);
+    showApiKeyStatus(`Connection failed: ${error.message}`, 'error');
+  }
+}
+
+// Update Google Drive configuration with API key
+function updateGoogleDriveConfigWithKey(apiKey) {
+  if (typeof window.updateGoogleDriveConfig === 'function') {
+    // Use the new function from google-drive-config.js
+    window.updateGoogleDriveConfig({ clientId: apiKey });
+    console.log('Google Drive configuration updated with API key');
+  } else if (typeof window.GOOGLE_DRIVE_CONFIG !== 'undefined') {
+    // Fallback to direct assignment
+    window.GOOGLE_DRIVE_CONFIG.CLIENT_ID = apiKey;
+    console.log('Google Drive configuration updated (legacy method)');
+    
+    // Re-initialize token client if needed
+    if (typeof initializeTokenClient === 'function' && apiKey) {
+      try {
+        initializeTokenClient();
+      } catch (error) {
+        console.error('Error re-initializing token client:', error);
+      }
+    }
+  }
+}
+
+// Show API key status message
+function showApiKeyStatus(message, type = 'info') {
+  const statusElement = document.getElementById('api-key-status');
+  if (!statusElement) return;
+  
+  statusElement.className = `p-3 rounded-md ${
+    type === 'success' ? 'bg-green-100 text-green-800 border border-green-200' :
+    type === 'error' ? 'bg-red-100 text-red-800 border border-red-200' :
+    'bg-blue-100 text-blue-800 border border-blue-200'
+  }`;
+  
+  statusElement.innerHTML = `
+    <div class="flex items-center">
+      <span class="material-symbols-outlined mr-2">
+        ${type === 'success' ? 'check_circle' : type === 'error' ? 'error' : 'info'}
+      </span>
+      <span>${message}</span>
+    </div>
+  `;
+  
+  statusElement.classList.remove('hidden');
+  
+  // Auto-hide after 5 seconds
+  setTimeout(() => {
+    statusElement.classList.add('hidden');
+  }, 5000);
+}
+
+// Load API key when settings view is shown
+async function loadSettings() {
+  const apiKey = await loadGoogleDriveApiKey();
+  const apiKeyInput = document.getElementById('google-drive-api-key');
+  
+  if (apiKey) {
+    // Don't show the actual key, just indicate it's saved
+    apiKeyInput.placeholder = 'API key is saved (enter new key to update)';
+    apiKeyInput.value = '';
+  } else {
+    apiKeyInput.placeholder = 'Enter your Google Drive API Client ID';
+    apiKeyInput.value = '';
+  }
+}
+
+
 

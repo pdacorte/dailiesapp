@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Export/Import</title>
+</head>
+<body>
+    <h1>DailiesApp Export/Import Test</h1>
+    
+    <h2>Test Data Structure</h2>
+    <pre id="test-data"></pre>
+    
+    <h2>Test Instructions</h2>
+    <ol>
+        <li>Open the DailiesApp (index.html) in your browser</li>
+        <li>Add some test tasks and time tracking entries</li>
+        <li>Click "Export Data" in the sidebar - should download a JSON file</li>
+        <li>Click "Import Data" in the sidebar - should allow you to select the exported file</li>
+        <li>Click "Cloud Sync" in the sidebar - should show sync options</li>
+        <li>Choose option 1 to copy data to clipboard</li>
+        <li>Choose option 2 to paste data from clipboard</li>
+    </ol>
+    
+    <h2>Expected JSON Structure</h2>
+    <pre>
+{
+  "version": "1.0",
+  "exportDate": "2025-01-08T...",
+  "appVersion": "1.0",
+  "tasks": [
+    {
+      "id": 1,
+      "title": "Task name",
+      "type": "Goal",
+      "status": false,
+      "startDate": "2025-01-08",
+      "endDate": null
+    }
+  ],
+  "timeTracking": [
+    {
+      "id": 1,
+      "taskName": "Task name",
+      "seconds": 3600,
+      "timestamp": "2025-01-08T..."
+    }
+  ]
+}
+    </pre>
+    
+    <script>
+        // Generate sample test data
+        const testData = {
+            version: "1.0",
+            exportDate: new Date().toISOString(),
+            appVersion: "1.0",
+            tasks: [
+                {
+                    id: 1,
+                    title: "Test Task 1",
+                    type: "Goal",
+                    status: false,
+                    startDate: new Date().toISOString().split('T')[0],
+                    endDate: null
+                },
+                {
+                    id: 2,
+                    title: "Test Task 2",
+                    type: "Non-Negotiable",
+                    status: true,
+                    startDate: new Date().toISOString().split('T')[0],
+                    endDate: new Date().toISOString().split('T')[0]
+                }
+            ],
+            timeTracking: [
+                {
+                    id: 1,
+                    taskName: "Test Task 1",
+                    seconds: 3600,
+                    timestamp: new Date().toISOString()
+                }
+            ]
+        };
+        
+        document.getElementById('test-data').textContent = JSON.stringify(testData, null, 2);
+    </script>
+</body>
+</html>

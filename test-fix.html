@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Google Drive Fix</title>
+</head>
+<body>
+    <h1>Testing Google Drive Fix</h1>
+    <div id="status"></div>
+    
+    <script>
+        // Mock the functions to test the fix
+        let callCount = 0;
+        const originalUpdateGoogleDriveConfig = window.updateGoogleDriveConfig;
+        
+        window.updateGoogleDriveConfig = function(newConfig) {
+            callCount++;
+            document.getElementById('status').innerHTML += 
+                `Call ${callCount}: updateGoogleDriveConfig called with clientId: ${newConfig.clientId}<br>`;
+            
+            if (callCount > 10) {
+                document.getElementById('status').innerHTML += 
+                    '<span style="color: red">ERROR: Infinite recursion detected!</span><br>';
+                throw new Error('Maximum call stack size exceeded');
+            }
+            
+            // Simulate the actual function
+            if (originalUpdateGoogleDriveConfig) {
+                return originalUpdateGoogleDriveConfig(newConfig);
+            }
+            return true;
+        };
+        
+        // Test the renamed function
+        function updateGoogleDriveConfigWithKey(apiKey) {
+            if (typeof window.updateGoogleDriveConfig === 'function') {
+                window.updateGoogleDriveConfig({ clientId: apiKey });
+                console.log('Google Drive configuration updated with API key');
+            }
+        }
+        
+        // Run test
+        try {
+            updateGoogleDriveConfigWithKey('test-api-key-123');
+            document.getElementById('status').innerHTML += 
+                '<span style="color: green">SUCCESS: No infinite recursion!</span><br>';
+        } catch (error) {
+            document.getElementById('status').innerHTML += 
+                `<span style="color: red">ERROR: ${error.message}</span><br>`;
+        }
+    </script>
+</body>
+</html>

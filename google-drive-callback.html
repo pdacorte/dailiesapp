@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Drive Authentication Callback</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .container {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            max-width: 500px;
+            width: 90%;
+        }
+        h1 {
+            margin-bottom: 20px;
+            font-size: 2.5rem;
+        }
+        p {
+            font-size: 1.1rem;
+            line-height: 1.6;
+            margin-bottom: 30px;
+        }
+        .success {
+            color: #4ade80;
+            font-size: 4rem;
+            margin-bottom: 20px;
+        }
+        .loading {
+            display: inline-block;
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+            margin-bottom: 20px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .button {
+            background: white;
+            color: #667eea;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 50px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="loading" id="loading"></div>
+        <h1 id="title">Completing Authentication...</h1>
+        <p id="message">Please wait while we complete the Google Drive authentication process.</p>
+        <a href="index.html" class="button" id="returnButton" style="display: none;">Return to DailiesApp</a>
+    </div>
+
+    <script>
+        // Check if we're in the OAuth callback
+        if (window.location.hash) {
+            const hashParams = new URLSearchParams(window.location.hash.substring(1));
+            const accessToken = hashParams.get('access_token');
+            const error = hashParams.get('error');
+            
+            if (accessToken) {
+                // Success - store the token and redirect back
+                localStorage.setItem('google_drive_token', accessToken);
+                
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('title').textContent = 'Authentication Successful!';
+                document.getElementById('message').textContent = 'You have successfully connected to Google Drive. You can now close this window or return to the app.';
+                document.getElementById('returnButton').style.display = 'inline-block';
+                
+                // Auto-close after 3 seconds
+                setTimeout(() => {
+                    window.close();
+                }, 3000);
+            } else if (error) {
+                // Error
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('title').textContent = 'Authentication Failed';
+                document.getElementById('message').textContent = `Error: ${error}. Please try again.`;
+                document.getElementById('returnButton').style.display = 'inline-block';
+            }
+        } else {
+            // No hash parameters - just show waiting message
+            setTimeout(() => {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('title').textContent = 'No Authentication Data';
+                document.getElementById('message').textContent = 'No authentication data received. Please try signing in again from the main app.';
+                document.getElementById('returnButton').style.display = 'inline-block';
+            }, 3000);
+        }
+        
+        // Fallback: if window doesn't close automatically, show return button after 5 seconds
+        setTimeout(() => {
+            document.getElementById('returnButton').style.display = 'inline-block';
+        }, 5000);
+    </script>
+</body>
+</html>
