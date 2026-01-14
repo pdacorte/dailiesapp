@@ -935,7 +935,7 @@ async function loadSignedInContent() {
             <h3 class="font-semibold text-gray-800 dark:text-gray-200">${userInfo?.name || 'Google User'}</h3>
             <p class="text-sm text-gray-600 dark:text-gray-400">${userInfo?.email || ''}</p>
           </div>
-          <button onclick="signOutFromDrive()" class="text-sm text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 font-medium">
+          <button onclick="signOutFromDrive()" class="text-sm text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 font-bold">
             Sign out
           </button>
         </div>

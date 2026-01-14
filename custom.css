@@ -1,0 +1,73 @@
+/* Confirmation button style for ongoing tasks */
+.confirmation-button {
+    position: relative;
+    appearance: none;
+    width: 24px;
+    height: 24px;
+    border: 2px solid #3b82f6;
+    border-radius: 50%;
+    background-color: transparent;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.confirmation-button:hover {
+    border-color: #2563eb;
+    background-color: rgba(59, 130, 246, 0.1);
+}
+
+/* Show subtle checkmark on hover */
+.confirmation-button:hover::after {
+    content: '';
+    position: absolute;
+    width: 6px;
+    height: 12px;
+    border: solid #3b82f6;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg) translate(-1px, -1px);
+    opacity: 0.5;
+}
+
+.confirmation-button:checked {
+    background-color: #3b82f6;
+    border-color: #3b82f6;
+}
+
+.confirmation-button:checked::after {
+    content: '';
+    position: absolute;
+    width: 6px;
+    height: 12px;
+    border: solid white;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg) translate(-1px, -1px);
+    opacity: 1;
+}
+
+.confirmation-button:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+}
+
+/* Dark mode styles */
+.dark .confirmation-button {
+    border-color: #60a5fa;
+}
+
+.dark .confirmation-button:hover {
+    border-color: #93c5fd;
+    background-color: rgba(96, 165, 250, 0.1);
+}
+
+/* Dark mode hover checkmark */
+.dark .confirmation-button:hover::after {
+    border-color: #93c5fd;
+}
+
+.dark .confirmation-button:checked {
+    background-color: #60a5fa;
+    border-color: #60a5fa;
+}

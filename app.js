@@ -12,6 +12,9 @@ let timerStartTime = null
 let isTimerRunning = false
 let currentTaskName = ""
 
+// Current view state
+let currentView = "dashboard"
+
 // Update user info display from Google Drive authentication
 function updateUserInfoDisplay(userInfo) {
   const userNameElement = document.getElementById('user-name');
@@ -275,6 +278,9 @@ function setActiveNav(view) {
 
 // Show/hide main sections based on selected view
 function setActiveView(view) {
+  // Update current view
+  currentView = view
+  
   // Get all section elements
   const dashboard = document.getElementById('dashboard-section')
   const calendar = document.getElementById('calendar-section')
@@ -338,6 +344,9 @@ function setActiveView(view) {
   
   // Update active nav
   setActiveNav(view)
+  
+  // Update completed tasks display based on view
+  updateCompletedTasks()
 }
 
 function showHelp() {
@@ -576,7 +585,7 @@ function updateOngoingTasks() {
         const taskElement = document.createElement("div")
         taskElement.className = "flex items-center space-x-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg"
         taskElement.innerHTML = `
-                    <input type="checkbox" onchange="completeTask(${task.id})" class="form-checkbox h-5 w-5 text-blue-600">
+                    <input type="checkbox" onchange="completeTask(${task.id})" class="confirmation-button">
                     <span class="flex-grow">${task.title}</span>
                     <span class="text-sm text-gray-500 dark:text-gray-400">${task.type}</span>
                     <button onclick="deleteTask(${task.id})" class="bg-blue-500 hover:bg-blue-600 rounded p-1.5 ml-2" title="Delete task">
@@ -599,6 +608,8 @@ function updateOngoingTasks() {
 // Update the list of recently completed tasks
 function updateCompletedTasks() {
   const completedList = document.getElementById("completed-tasks")
+  if (!completedList) return
+  
   completedList.innerHTML = ""
 
   const transaction = db.transaction(["tasks"], "readonly")
@@ -608,14 +619,24 @@ function updateCompletedTasks() {
   const request = taskStore.getAll()
 
   request.onsuccess = () => {
-    const tasks = request.result
+    let tasks = request.result
       .filter((task) => task.status === true) // Filter completed tasks
       .sort((a, b) => new Date(b.endDate) - new Date(a.endDate))
-      .slice(0, 5)
+    
+    // Only show last 5 on dashboard, show all on My Tasks screen
+    if (currentView !== "tasks") {
+      tasks = tasks.slice(0, 5)
+    }
 
     if (tasks.length === 0) {
       completedList.innerHTML = '<p class="text-gray-500 dark:text-gray-400">No completed tasks</p>'
       return
+    }
+
+    // Update heading based on view
+    const heading = document.getElementById('completed-tasks-heading')
+    if (heading) {
+      heading.textContent = currentView === "tasks" ? "All Completed Tasks" : "Last 5 Completed Tasks"
     }
 
     tasks.forEach((task) => {
