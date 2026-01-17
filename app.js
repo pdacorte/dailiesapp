@@ -1,10 +1,14 @@
 // Initialize database connection and global variables
 let db
 const dbName = "dailiesDB"
-const dbVersion = 3
+const dbVersion = 4  // Incremented for sortOrder field
 let currentChart = null
 let currentPieChart = null
 let expectedTasksPerDay = 1
+
+// Drag and drop variables
+let draggedElement = null
+let draggedTaskId = null
 
 // Time tracker variables
 let timerInterval = null
@@ -191,6 +195,7 @@ function initializeDB() {
   request.onupgradeneeded = (event) => {
     console.log("Upgrading database...")
     db = event.target.result
+    const oldVersion = event.oldVersion
 
     // Create tasks object store
     if (!db.objectStoreNames.contains("tasks")) {
@@ -198,7 +203,30 @@ function initializeDB() {
       taskStore.createIndex("status", "status")
       taskStore.createIndex("type", "type")
       taskStore.createIndex("endDate", "endDate")
+      taskStore.createIndex("sortOrder", "sortOrder")
       console.log("Created tasks store and indexes")
+    } else if (oldVersion < 4) {
+      // Migration: Add sortOrder index to existing tasks store
+      const transaction = event.target.transaction
+      const taskStore = transaction.objectStore("tasks")
+      
+      if (!taskStore.indexNames.contains("sortOrder")) {
+        taskStore.createIndex("sortOrder", "sortOrder")
+        console.log("Added sortOrder index to tasks store")
+      }
+      
+      // Add sortOrder to existing tasks
+      const getAllRequest = taskStore.getAll()
+      getAllRequest.onsuccess = () => {
+        const tasks = getAllRequest.result
+        tasks.forEach((task, index) => {
+          if (task.sortOrder === undefined) {
+            task.sortOrder = index
+            taskStore.put(task)
+          }
+        })
+        console.log("Added sortOrder to existing tasks")
+      }
     }
 
     // Create time tracking object store
@@ -437,42 +465,56 @@ function addTask() {
     return
   }
 
-  const task = {
-    title: taskInput.value.trim(),
-    type: taskType.value,
-    status: false,
-    startDate: getTodayDate(),
-    endDate: null,
-  }
+  // Get the current max sortOrder for ongoing tasks
+  const transaction = db.transaction(["tasks"], "readonly")
+  const taskStore = transaction.objectStore("tasks")
+  const request = taskStore.getAll()
 
-  console.log("Attempting to add task:", task)
+  request.onsuccess = () => {
+    const allTasks = request.result
+    const ongoingTasks = allTasks.filter(task => !task.status)
+    const maxSortOrder = ongoingTasks.length > 0 
+      ? Math.max(...ongoingTasks.map(t => t.sortOrder || 0))
+      : -1
 
-  try {
-    const transaction = db.transaction(["tasks"], "readwrite")
-    const taskStore = transaction.objectStore("tasks")
-
-    const request = taskStore.add(task)
-
-    request.onsuccess = (event) => {
-      console.log("Task added successfully, ID:", event.target.result)
-      taskInput.value = ""
-      updateDisplay()
+    const task = {
+      title: taskInput.value.trim(),
+      type: taskType.value,
+      status: false,
+      startDate: getTodayDate(),
+      endDate: null,
+      sortOrder: maxSortOrder + 1
     }
 
-    request.onerror = (event) => {
-      console.error("Error adding task:", event.target.error)
-      alert("Error adding task. Please try again.")
-    }
+    console.log("Attempting to add task:", task)
 
-    transaction.oncomplete = () => {
-      console.log("Transaction completed successfully")
-    }
+    try {
+      const writeTransaction = db.transaction(["tasks"], "readwrite")
+      const writeTaskStore = writeTransaction.objectStore("tasks")
 
-    transaction.onerror = (event) => {
-      console.error("Transaction error:", event.target.error)
+      const addRequest = writeTaskStore.add(task)
+
+      addRequest.onsuccess = (event) => {
+        console.log("Task added successfully, ID:", event.target.result)
+        taskInput.value = ""
+        updateDisplay()
+      }
+
+      addRequest.onerror = (event) => {
+        console.error("Error adding task:", event.target.error)
+        alert("Error adding task. Please try again.")
+      }
+
+      writeTransaction.oncomplete = () => {
+        console.log("Transaction completed successfully")
+      }
+
+      writeTransaction.onerror = (event) => {
+        console.error("Transaction error:", event.target.error)
+      }
+    } catch (error) {
+      console.error("Error in addTask:", error)
     }
-  } catch (error) {
-    console.error("Error in addTask:", error)
   }
 }
 
@@ -491,16 +533,29 @@ function completeTask(taskId) {
     taskStore.put(task).onsuccess = () => {
       // If task is Non-Negotiable, create next day's task
       if (task.type === "Non-Negotiable") {
-        const nextTask = {
-          title: task.title,
-          type: "Non-Negotiable",
-          status: false,
-          startDate: formatDate(new Date(new Date().getTime() + 86400000)),
-          endDate: null,
+        // Get current max sortOrder for ongoing tasks
+        const getAllRequest = taskStore.getAll()
+        getAllRequest.onsuccess = () => {
+          const allTasks = getAllRequest.result
+          const ongoingTasks = allTasks.filter(t => !t.status)
+          const maxSortOrder = ongoingTasks.length > 0 
+            ? Math.max(...ongoingTasks.map(t => t.sortOrder || 0))
+            : -1
+          
+          const nextTask = {
+            title: task.title,
+            type: "Non-Negotiable",
+            status: false,
+            startDate: formatDate(new Date(new Date().getTime() + 86400000)),
+            endDate: null,
+            sortOrder: maxSortOrder + 1
+          }
+          taskStore.add(nextTask)
+          updateDisplay()
         }
-        taskStore.add(nextTask)
+      } else {
+        updateDisplay()
       }
-      updateDisplay()
     }
   }
 }
@@ -570,8 +625,16 @@ function updateOngoingTasks() {
       const allTasks = request.result
       console.log("All tasks:", allTasks)
 
-      const tasks = allTasks.filter((task) => !task.status)
-      console.log("Filtered ongoing tasks:", tasks)
+      let tasks = allTasks.filter((task) => !task.status)
+      
+      // Sort tasks by sortOrder
+      tasks.sort((a, b) => {
+        const orderA = a.sortOrder !== undefined ? a.sortOrder : 999999
+        const orderB = b.sortOrder !== undefined ? b.sortOrder : 999999
+        return orderA - orderB
+      })
+      
+      console.log("Filtered and sorted ongoing tasks:", tasks)
 
       if (tasks.length === 0) {
         taskList.innerHTML = '<p class="text-gray-500 dark:text-gray-400">No ongoing tasks</p>'
@@ -583,7 +646,9 @@ function updateOngoingTasks() {
 
       tasks.forEach((task) => {
         const taskElement = document.createElement("div")
-        taskElement.className = "flex items-center space-x-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg"
+        taskElement.className = "flex items-center space-x-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg cursor-move transition-opacity"
+        taskElement.draggable = true
+        taskElement.dataset.taskId = task.id
         taskElement.innerHTML = `
                     <input type="checkbox" onchange="completeTask(${task.id})" class="confirmation-button">
                     <span class="flex-grow">${task.title}</span>
@@ -592,6 +657,15 @@ function updateOngoingTasks() {
                         <img src="${crossIcon}" class="h-3 w-3 scale-150" alt="Delete">
                     </button>
                 `
+        
+        // Add drag event listeners
+        taskElement.addEventListener('dragstart', handleDragStart)
+        taskElement.addEventListener('dragover', handleDragOver)
+        taskElement.addEventListener('drop', handleDrop)
+        taskElement.addEventListener('dragend', handleDragEnd)
+        taskElement.addEventListener('dragenter', handleDragEnter)
+        taskElement.addEventListener('dragleave', handleDragLeave)
+        
         taskList.appendChild(taskElement)
       })
     }
@@ -862,6 +936,107 @@ function deleteTask(taskId) {
     console.error("Error deleting task:", event.target.error);
     alert("Error deleting task. Please try again.");
   };
+}
+
+// Drag and Drop Event Handlers
+
+function handleDragStart(e) {
+  draggedElement = this
+  draggedTaskId = parseInt(this.dataset.taskId)
+  this.style.opacity = '0.4'
+  e.dataTransfer.effectAllowed = 'move'
+  e.dataTransfer.setData('text/html', this.innerHTML)
+}
+
+function handleDragOver(e) {
+  if (e.preventDefault) {
+    e.preventDefault()
+  }
+  e.dataTransfer.dropEffect = 'move'
+  return false
+}
+
+function handleDragEnter(e) {
+  if (this !== draggedElement) {
+    this.classList.add('border-2', 'border-blue-500', 'border-dashed')
+  }
+}
+
+function handleDragLeave(e) {
+  this.classList.remove('border-2', 'border-blue-500', 'border-dashed')
+}
+
+function handleDrop(e) {
+  if (e.stopPropagation) {
+    e.stopPropagation()
+  }
+  
+  this.classList.remove('border-2', 'border-blue-500', 'border-dashed')
+  
+  if (draggedElement !== this) {
+    // Get all task elements
+    const taskList = document.getElementById("ongoing-tasks")
+    const allTasks = Array.from(taskList.children)
+    
+    // Find positions
+    const draggedIndex = allTasks.indexOf(draggedElement)
+    const targetIndex = allTasks.indexOf(this)
+    
+    // Reorder DOM elements
+    if (draggedIndex < targetIndex) {
+      this.parentNode.insertBefore(draggedElement, this.nextSibling)
+    } else {
+      this.parentNode.insertBefore(draggedElement, this)
+    }
+    
+    // Save new order to database
+    saveTaskOrder()
+  }
+  
+  return false
+}
+
+function handleDragEnd(e) {
+  this.style.opacity = '1'
+  
+  // Remove all drag styling
+  const taskList = document.getElementById("ongoing-tasks")
+  const allTasks = Array.from(taskList.children)
+  allTasks.forEach(task => {
+    task.classList.remove('border-2', 'border-blue-500', 'border-dashed')
+  })
+}
+
+// Save the current task order to database
+function saveTaskOrder() {
+  const taskList = document.getElementById("ongoing-tasks")
+  const taskElements = Array.from(taskList.children)
+  
+  // Get task IDs in current order
+  const taskIds = taskElements.map(el => parseInt(el.dataset.taskId))
+  
+  // Update sortOrder in database
+  const transaction = db.transaction(["tasks"], "readwrite")
+  const taskStore = transaction.objectStore("tasks")
+  
+  taskIds.forEach((taskId, index) => {
+    const getRequest = taskStore.get(taskId)
+    getRequest.onsuccess = () => {
+      const task = getRequest.result
+      if (task) {
+        task.sortOrder = index
+        taskStore.put(task)
+      }
+    }
+  })
+  
+  transaction.oncomplete = () => {
+    console.log("Task order saved successfully")
+  }
+  
+  transaction.onerror = (event) => {
+    console.error("Error saving task order:", event.target.error)
+  }
 }
 
 // Time Tracker Functions
