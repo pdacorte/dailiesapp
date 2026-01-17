@@ -1,10 +1,14 @@
 // Initialize database connection and global variables
 let db
 const dbName = "dailiesDB"
-const dbVersion = 4
+const dbVersion = 4  // Incremented for sortOrder field
 let currentChart = null
 let currentPieChart = null
 let expectedTasksPerDay = 1
+
+// Drag and drop variables
+let draggedElement = null
+let draggedTaskId = null
 
 // Time tracker variables
 let timerInterval = null
@@ -191,6 +195,7 @@ function initializeDB() {
   request.onupgradeneeded = (event) => {
     console.log("Upgrading database...")
     db = event.target.result
+    const oldVersion = event.oldVersion
 
     // Create tasks object store
     if (!db.objectStoreNames.contains("tasks")) {
@@ -198,15 +203,29 @@ function initializeDB() {
       taskStore.createIndex("status", "status")
       taskStore.createIndex("type", "type")
       taskStore.createIndex("endDate", "endDate")
-      taskStore.createIndex("order", "order")
+      taskStore.createIndex("sortOrder", "sortOrder")
       console.log("Created tasks store and indexes")
-    } else {
-      // For existing databases, add the order index if it doesn't exist
+    } else if (oldVersion < 4) {
+      // Migration: Add sortOrder index to existing tasks store
       const transaction = event.target.transaction
       const taskStore = transaction.objectStore("tasks")
-      if (!taskStore.indexNames.contains("order")) {
-        taskStore.createIndex("order", "order")
-        console.log("Added order index to tasks store")
+      
+      if (!taskStore.indexNames.contains("sortOrder")) {
+        taskStore.createIndex("sortOrder", "sortOrder")
+        console.log("Added sortOrder index to tasks store")
+      }
+      
+      // Add sortOrder to existing tasks
+      const getAllRequest = taskStore.getAll()
+      getAllRequest.onsuccess = () => {
+        const tasks = getAllRequest.result
+        tasks.forEach((task, index) => {
+          if (task.sortOrder === undefined) {
+            task.sortOrder = index
+            taskStore.put(task)
+          }
+        })
+        console.log("Added sortOrder to existing tasks")
       }
     }
 
@@ -446,18 +465,17 @@ function addTask() {
     return
   }
 
-  // Get the highest order value for ongoing tasks
-  const transaction = db.transaction(["tasks"], "readwrite")
+  // Get the current max sortOrder for ongoing tasks
+  const transaction = db.transaction(["tasks"], "readonly")
   const taskStore = transaction.objectStore("tasks")
-  
-  const getAllRequest = taskStore.getAll()
-  
-  getAllRequest.onsuccess = () => {
-    const allTasks = getAllRequest.result
-    const ongoingTasks = allTasks.filter(t => !t.status)
-    const maxOrder = ongoingTasks.length > 0 
-      ? Math.max(...ongoingTasks.map(t => t.order || 0))
-      : 0
+  const request = taskStore.getAll()
+
+  request.onsuccess = () => {
+    const allTasks = request.result
+    const ongoingTasks = allTasks.filter(task => !task.status)
+    const maxSortOrder = ongoingTasks.length > 0 
+      ? Math.max(...ongoingTasks.map(t => t.sortOrder || 0))
+      : -1
 
     const task = {
       title: taskInput.value.trim(),
@@ -465,35 +483,38 @@ function addTask() {
       status: false,
       startDate: getTodayDate(),
       endDate: null,
-      order: maxOrder + 1
+      sortOrder: maxSortOrder + 1
     }
 
     console.log("Attempting to add task:", task)
 
-    const addRequest = taskStore.add(task)
+    try {
+      const writeTransaction = db.transaction(["tasks"], "readwrite")
+      const writeTaskStore = writeTransaction.objectStore("tasks")
 
-    addRequest.onsuccess = (event) => {
-      console.log("Task added successfully, ID:", event.target.result)
-      taskInput.value = ""
-      updateDisplay()
+      const addRequest = writeTaskStore.add(task)
+
+      addRequest.onsuccess = (event) => {
+        console.log("Task added successfully, ID:", event.target.result)
+        taskInput.value = ""
+        updateDisplay()
+      }
+
+      addRequest.onerror = (event) => {
+        console.error("Error adding task:", event.target.error)
+        alert("Error adding task. Please try again.")
+      }
+
+      writeTransaction.oncomplete = () => {
+        console.log("Transaction completed successfully")
+      }
+
+      writeTransaction.onerror = (event) => {
+        console.error("Transaction error:", event.target.error)
+      }
+    } catch (error) {
+      console.error("Error in addTask:", error)
     }
-
-    addRequest.onerror = (event) => {
-      console.error("Error adding task:", event.target.error)
-      alert("Error adding task. Please try again.")
-    }
-  }
-
-  getAllRequest.onerror = (event) => {
-    console.error("Error getting tasks for order:", event.target.error)
-  }
-
-  transaction.oncomplete = () => {
-    console.log("Transaction completed successfully")
-  }
-
-  transaction.onerror = (event) => {
-    console.error("Transaction error:", event.target.error)
   }
 }
 
@@ -512,23 +533,22 @@ function completeTask(taskId) {
     taskStore.put(task).onsuccess = () => {
       // If task is Non-Negotiable, create next day's task
       if (task.type === "Non-Negotiable") {
-        // Get the highest order value for ongoing tasks to place new task at the end
+        // Get current max sortOrder for ongoing tasks
         const getAllRequest = taskStore.getAll()
-        
         getAllRequest.onsuccess = () => {
           const allTasks = getAllRequest.result
           const ongoingTasks = allTasks.filter(t => !t.status)
-          const maxOrder = ongoingTasks.length > 0 
-            ? Math.max(...ongoingTasks.map(t => t.order || 0))
-            : 0
-
+          const maxSortOrder = ongoingTasks.length > 0 
+            ? Math.max(...ongoingTasks.map(t => t.sortOrder || 0))
+            : -1
+          
           const nextTask = {
             title: task.title,
             type: "Non-Negotiable",
             status: false,
             startDate: formatDate(new Date(new Date().getTime() + 86400000)),
             endDate: null,
-            order: maxOrder + 1
+            sortOrder: maxSortOrder + 1
           }
           taskStore.add(nextTask)
           updateDisplay()
@@ -606,7 +626,15 @@ function updateOngoingTasks() {
       console.log("All tasks:", allTasks)
 
       let tasks = allTasks.filter((task) => !task.status)
-      console.log("Filtered ongoing tasks:", tasks)
+      
+      // Sort tasks by sortOrder
+      tasks.sort((a, b) => {
+        const orderA = a.sortOrder !== undefined ? a.sortOrder : 999999
+        const orderB = b.sortOrder !== undefined ? b.sortOrder : 999999
+        return orderA - orderB
+      })
+      
+      console.log("Filtered and sorted ongoing tasks:", tasks)
 
       // Sort tasks by order field (ascending)
       tasks.sort((a, b) => {
@@ -625,11 +653,9 @@ function updateOngoingTasks() {
 
       tasks.forEach((task, index) => {
         const taskElement = document.createElement("div")
-        taskElement.className = "flex items-center space-x-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg cursor-move"
+        taskElement.className = "flex items-center space-x-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg cursor-move transition-opacity"
         taskElement.draggable = true
         taskElement.dataset.taskId = task.id
-        taskElement.dataset.taskOrder = task.order || index
-        
         taskElement.innerHTML = `
                     <span class="material-symbols-outlined text-gray-400 drag-handle">drag_indicator</span>
                     <input type="checkbox" onchange="completeTask(${task.id})" class="confirmation-button">
@@ -920,16 +946,14 @@ function deleteTask(taskId) {
   };
 }
 
-// Drag and Drop functionality for task reordering
-let draggedElement = null
-let draggedTaskId = null
+// Drag and Drop Event Handlers
 
 function handleDragStart(e) {
-  draggedElement = e.currentTarget
-  draggedTaskId = draggedElement.dataset.taskId
-  e.currentTarget.style.opacity = '0.4'
+  draggedElement = this
+  draggedTaskId = parseInt(this.dataset.taskId)
+  this.style.opacity = '0.4'
   e.dataTransfer.effectAllowed = 'move'
-  e.dataTransfer.setData('text/html', e.currentTarget.innerHTML)
+  e.dataTransfer.setData('text/html', this.innerHTML)
 }
 
 function handleDragOver(e) {
@@ -941,13 +965,13 @@ function handleDragOver(e) {
 }
 
 function handleDragEnter(e) {
-  if (e.currentTarget !== draggedElement && e.currentTarget.draggable) {
-    e.currentTarget.classList.add('border-2', 'border-blue-500')
+  if (this !== draggedElement) {
+    this.classList.add('border-2', 'border-blue-500', 'border-dashed')
   }
 }
 
 function handleDragLeave(e) {
-  e.currentTarget.classList.remove('border-2', 'border-blue-500')
+  this.classList.remove('border-2', 'border-blue-500', 'border-dashed')
 }
 
 function handleDrop(e) {
@@ -955,62 +979,64 @@ function handleDrop(e) {
     e.stopPropagation()
   }
   
-  e.currentTarget.classList.remove('border-2', 'border-blue-500')
+  this.classList.remove('border-2', 'border-blue-500', 'border-dashed')
   
-  const dropTarget = e.currentTarget
-  if (draggedElement !== dropTarget && dropTarget.draggable) {
-    const allTaskElements = Array.from(document.querySelectorAll('#ongoing-tasks > div[draggable="true"]'))
-    const draggedIndex = allTaskElements.indexOf(draggedElement)
-    const dropIndex = allTaskElements.indexOf(dropTarget)
+  if (draggedElement !== this) {
+    // Get all task elements
+    const taskList = document.getElementById("ongoing-tasks")
+    const allTasks = Array.from(taskList.children)
+    
+    // Find positions
+    const draggedIndex = allTasks.indexOf(draggedElement)
+    const targetIndex = allTasks.indexOf(this)
     
     // Reorder DOM elements
-    if (draggedIndex < dropIndex) {
-      dropTarget.parentNode.insertBefore(draggedElement, dropTarget.nextSibling)
+    if (draggedIndex < targetIndex) {
+      this.parentNode.insertBefore(draggedElement, this.nextSibling)
     } else {
-      dropTarget.parentNode.insertBefore(draggedElement, dropTarget)
+      this.parentNode.insertBefore(draggedElement, this)
     }
+    
+    // Save new order to database
+    saveTaskOrder()
   }
   
   return false
 }
 
 function handleDragEnd(e) {
-  e.currentTarget.style.opacity = '1'
+  this.style.opacity = '1'
   
-  // Remove all visual indicators
-  const allTaskElements = document.querySelectorAll('#ongoing-tasks > div[draggable="true"]')
-  allTaskElements.forEach(el => {
-    el.classList.remove('border-2', 'border-blue-500')
+  // Remove all drag styling
+  const taskList = document.getElementById("ongoing-tasks")
+  const allTasks = Array.from(taskList.children)
+  allTasks.forEach(task => {
+    task.classList.remove('border-2', 'border-blue-500', 'border-dashed')
   })
-  
-  // Save new order to database
-  saveTaskOrder()
 }
 
-async function saveTaskOrder() {
-  const taskElements = document.querySelectorAll('#ongoing-tasks > div[draggable="true"]')
-  const updates = []
+// Save the current task order to database
+function saveTaskOrder() {
+  const taskList = document.getElementById("ongoing-tasks")
+  const taskElements = Array.from(taskList.children)
   
-  taskElements.forEach((element, index) => {
-    const taskId = parseInt(element.dataset.taskId)
-    updates.push({ id: taskId, order: index + 1 })
-  })
+  // Get task IDs in current order
+  const taskIds = taskElements.map(el => parseInt(el.dataset.taskId))
   
-  // Update all tasks with new order
+  // Update sortOrder in database
   const transaction = db.transaction(["tasks"], "readwrite")
   const taskStore = transaction.objectStore("tasks")
   
-  for (const update of updates) {
-    const getRequest = taskStore.get(update.id)
-    
+  taskIds.forEach((taskId, index) => {
+    const getRequest = taskStore.get(taskId)
     getRequest.onsuccess = () => {
       const task = getRequest.result
       if (task) {
-        task.order = update.order
+        task.sortOrder = index
         taskStore.put(task)
       }
     }
-  }
+  })
   
   transaction.oncomplete = () => {
     console.log("Task order saved successfully")
