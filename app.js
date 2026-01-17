@@ -636,6 +636,13 @@ function updateOngoingTasks() {
       
       console.log("Filtered and sorted ongoing tasks:", tasks)
 
+      // Sort tasks by order field (ascending)
+      tasks.sort((a, b) => {
+        const orderA = a.order !== undefined ? a.order : 999999
+        const orderB = b.order !== undefined ? b.order : 999999
+        return orderA - orderB
+      })
+
       if (tasks.length === 0) {
         taskList.innerHTML = '<p class="text-gray-500 dark:text-gray-400">No ongoing tasks</p>'
         return
@@ -644,12 +651,13 @@ function updateOngoingTasks() {
       const isDarkMode = document.documentElement.classList.contains('dark');
       const crossIcon = isDarkMode ? './icons/whitecross.svg' : './icons/cross.svg';
 
-      tasks.forEach((task) => {
+      tasks.forEach((task, index) => {
         const taskElement = document.createElement("div")
         taskElement.className = "flex items-center space-x-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg cursor-move transition-opacity"
         taskElement.draggable = true
         taskElement.dataset.taskId = task.id
         taskElement.innerHTML = `
+                    <span class="material-symbols-outlined text-gray-400 drag-handle">drag_indicator</span>
                     <input type="checkbox" onchange="completeTask(${task.id})" class="confirmation-button">
                     <span class="flex-grow">${task.title}</span>
                     <span class="text-sm text-gray-500 dark:text-gray-400">${task.type}</span>
