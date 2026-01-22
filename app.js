@@ -873,16 +873,12 @@ function updateLast7DaysOverview() {
   ).then((results) => {
     console.log('7 day overview results:', results) // Debug log
     const overviewElement = document.getElementById("seven-day-overview")
-    overviewElement.innerHTML = results
-      .map(
-        (day) => `
-            <div class="text-center">
-                <div class="text-sm mb-1">${day.date}</div>
-                <div class="text-lg font-semibold ${day.count > 0 ? "text-green-500" : "text-red-500"}">${day.count}</div>
-            </div>
-        `,
-      )
-      .join("")
+    
+    // Create two rows: one for dates, one for counts
+    const datesRow = results.map(day => `<div class="text-center text-sm mb-1">${day.date}</div>`).join("")
+    const countsRow = results.map(day => `<div class="text-center text-lg font-semibold ${day.count > 0 ? "text-green-500" : "text-red-500"}">${day.count}</div>`).join("")
+    
+    overviewElement.innerHTML = datesRow + countsRow
   })
 }
 
