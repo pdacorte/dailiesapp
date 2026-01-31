@@ -518,8 +518,92 @@ function addTask() {
   }
 }
 
+// Confetti animation for task completion
+function triggerConfetti(originElement) {
+  const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899']
+  const confettiCount = 30
+  
+  // Get origin position (checkbox position)
+  let originX, originY
+  if (originElement) {
+    const rect = originElement.getBoundingClientRect()
+    originX = rect.left + rect.width / 2
+    originY = rect.top + rect.height / 2
+  } else {
+    // Fallback to center of screen
+    originX = window.innerWidth / 2
+    originY = window.innerHeight / 2
+  }
+  
+  // Create confetti container
+  const container = document.createElement('div')
+  container.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9999;overflow:hidden'
+  document.body.appendChild(container)
+  
+  // Create confetti pieces
+  for (let i = 0; i < confettiCount; i++) {
+    const confetti = document.createElement('div')
+    const color = colors[Math.floor(Math.random() * colors.length)]
+    const size = Math.random() * 8 + 4
+    const isCircle = Math.random() > 0.5
+    
+    confetti.style.cssText = `
+      position:absolute;
+      left:${originX}px;
+      top:${originY}px;
+      width:${size}px;
+      height:${isCircle ? size : size * 0.6}px;
+      background:${color};
+      border-radius:${isCircle ? '50%' : '2px'};
+      transform:rotate(${Math.random() * 360}deg);
+      opacity:1;
+    `
+    container.appendChild(confetti)
+    
+    // Animate each piece
+    const angle = (Math.random() * 120 - 60) * (Math.PI / 180) // Spread upward
+    const velocity = Math.random() * 400 + 200
+    const velocityX = Math.sin(angle) * velocity
+    const velocityY = -Math.cos(angle) * velocity
+    const rotationSpeed = (Math.random() - 0.5) * 720
+    const gravity = 800
+    
+    let startTime = null
+    const duration = 1500
+    
+    function animate(timestamp) {
+      if (!startTime) startTime = timestamp
+      const elapsed = timestamp - startTime
+      const progress = elapsed / duration
+      
+      if (progress < 1) {
+        const t = elapsed / 1000
+        const x = originX + velocityX * t
+        const y = originY + velocityY * t + 0.5 * gravity * t * t
+        const rotation = rotationSpeed * t
+        const opacity = 1 - progress
+        
+        confetti.style.left = `${x}px`
+        confetti.style.top = `${y}px`
+        confetti.style.transform = `rotate(${rotation}deg)`
+        confetti.style.opacity = opacity
+        
+        requestAnimationFrame(animate)
+      } else {
+        confetti.remove()
+      }
+    }
+    
+    // Stagger the start of each confetti piece slightly
+    setTimeout(() => requestAnimationFrame(animate), Math.random() * 50)
+  }
+  
+  // Clean up container after animation
+  setTimeout(() => container.remove(), 2000)
+}
+
 // Mark a task as complete and create next day's task if Non-Negotiable
-function completeTask(taskId) {
+function completeTask(taskId, checkboxElement) {
   const transaction = db.transaction(["tasks"], "readwrite")
   const taskStore = transaction.objectStore("tasks")
 
@@ -531,6 +615,9 @@ function completeTask(taskId) {
     task.endDate = today
 
     taskStore.put(task).onsuccess = () => {
+      // Trigger confetti animation
+      triggerConfetti(checkboxElement)
+      
       // If task is Non-Negotiable, create next day's task
       if (task.type === "Non-Negotiable") {
         // Get current max sortOrder for ongoing tasks
@@ -658,7 +745,7 @@ function updateOngoingTasks() {
         taskElement.dataset.taskId = task.id
         taskElement.innerHTML = `
                     <span class="material-symbols-outlined text-gray-400 drag-handle">drag_indicator</span>
-                    <input type="checkbox" onchange="completeTask(${task.id})" class="confirmation-button">
+                    <input type="checkbox" onchange="completeTask(${task.id}, this)" class="confirmation-button">
                     <span class="flex-grow">${task.title}</span>
                     <span class="text-sm text-gray-500 dark:text-gray-400">${task.type}</span>
                     <button onclick="deleteTask(${task.id})" class="bg-blue-500 hover:bg-blue-600 rounded p-1.5 ml-2" title="Delete task">
