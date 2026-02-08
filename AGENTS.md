@@ -13,8 +13,10 @@ DailiesApp is a productivity web application with the following features:
 
 **Technology Stack:**
 - **Frontend**: HTML/CSS/JavaScript with IndexedDB storage
-- **Styling**: Tailwind CSS v4.0.0
-- **Charts**: Chart.js for data visualization
+- **Styling**: Tailwind CSS v3.4.17 (built via @tailwindcss/cli v4.0.0)
+- **CSS Architecture**: `styles.css` (Tailwind directives + animations) + `custom.css` (component styles)
+- **Design System**: Zinc color palette, Indigo primary (#6366f1), Inter font, Material Symbols icons
+- **Charts**: Chart.js for data visualization (doughnut + line charts)
 - **Cloud Sync**: Google Drive API integration
 
 ## Build & Development Commands
@@ -81,11 +83,16 @@ node -c app.js
 - Modal dialogs for user interactions (Google Drive sync, export/import)
 
 **CSS/Tailwind:**
-- Use Tailwind CSS utility classes primarily (v4.0.0)
-- Custom CSS in `styles.css` only for complex cases not covered by Tailwind
-- Dark mode support via `dark:` prefix classes and `class` strategy
+- Use Tailwind CSS utility classes primarily (v3.4.17 via @tailwindcss/cli v4.0.0)
+- `styles.css`: Tailwind directives (`@tailwind base/components/utilities`), CSS variables, animation keyframes
+- `custom.css`: Component classes (`.card`, `.btn-primary`, `.task-item`, `.confirmation-button`, etc.)
+- Dark mode support via `dark:` prefix classes and `.dark` parent class strategy
 - Responsive design with mobile-first approach using Tailwind breakpoints
 - Consistent spacing using Tailwind's spacing scale
+- Design tokens defined as CSS variables in `:root` (e.g., `--primary`, `--radius`, `--shadow-card`)
+- Animation classes: `.animate-fade-in`, `.animate-slide-up`, `.animate-scale-in`
+- Stagger animations: `.stagger-1` through `.stagger-8` for sequential entry effects
+- Task completion: `.task-completing` exit animation + confetti particle burst (pure CSS/JS, no libraries)
 
 **Google Drive Integration:**
 - Configuration, operations, and UI in `google-drive.js` (merged file)
@@ -99,11 +106,14 @@ node -c app.js
 ### Frontend Architecture
 1. **Initialization**: `DOMContentLoaded` event sets up database, event listeners, and auto-save
 2. **State Management**: Global variables for timer state, database connection, chart instances
-3. **Data Persistence**: IndexedDB with two object stores: `tasks` and `timeTracking`
+3. **Data Persistence**: IndexedDB with three object stores: `tasks`, `timeTracking`, `settings`
 4. **UI Updates**: Modular functions update specific sections independently
+   - `updateDisplay()`: Full refresh (quote + all sections) — used on initial load
+   - `updateDisplayAfterTaskChange()`: Partial refresh (skips quote) — used after task complete/delete
 5. **Event Handling**: Centralized setup in `setupEventListeners()` with clear separation
 6. **Export/Import System**: JSON-based with validation and error handling
 7. **Cloud Sync**: Three-tier approach: clipboard, localStorage, Google Drive
+8. **Animations**: CSS-driven with stagger delays; task completion uses exit animation + confetti
 
 ### Data Flow
 1. **User Input** → Form validation → IndexedDB transaction
@@ -124,12 +134,13 @@ node -c app.js
 
 ```
 dailiesapp/
-├── index.html          # Main HTML file
+├── index.html          # Main HTML file (zinc/indigo design, 5-col grid layout)
 ├── app.js             # Main JavaScript application
-├── styles.css         # Custom CSS styles
+├── styles.css         # Tailwind directives + CSS variables + animation keyframes
+├── custom.css         # Custom component styles (.card, .btn-*, .task-item, etc.)
 ├── output.css         # Generated Tailwind CSS (dev)
 ├── minified.css       # Minified Tailwind CSS (prod)
-├── tailwind.config.js # Tailwind configuration
+├── tailwind.config.js # Tailwind configuration (Inter font, darkMode: 'class')
 ├── postcss.config.js  # PostCSS configuration
 ├── package.json       # Node.js dependencies
 ├── icons/             # SVG icons
@@ -137,17 +148,24 @@ dailiesapp/
 │   └── whitecross.svg
 ├── google-drive.js            # Google Drive API integration (merged file)
 ├── GOOGLE_DRIVE_SETUP.md       # Google Drive setup guide
+├── GOOGLE_DRIVE_TROUBLESHOOTING.md # Google Drive troubleshooting guide
 ├── documentation/     # Project documentation
 │   ├── shadcn.txt
 │   ├── how_to_use_cursorrules.txt
 │   ├── .cursorrules.txt
 │   └── tailwind_use.txt
-├── test-export.html           # Export/import test utility
-├── test-google-drive.html     # Google Drive test utility
+├── tests/             # Test utilities
+│   ├── test-export.html
+│   ├── test-google-drive.html
+│   ├── google-drive-test.html
+│   ├── google-drive-callback.html
+│   ├── fix-google-drive.html
+│   └── test-fix.html
 ├── stitch_fe_rework/          # Frontend reference files
-    ├── screen.png
-    ├── frontend_reference.html
-    └── index_v1.html
+│   ├── screen.png
+│   ├── frontend_reference.html
+│   └── index_v1.html
+└── *.bak              # Backup files from UI redesign (index.html.bak, etc.)
 ```
 
 ## Development Workflow
@@ -171,16 +189,20 @@ dailiesapp/
    - Add, complete, delete tasks
    - Non-negotiable tasks auto-create for next day
    - Task type categorization (Goal/Non-Negotiable)
+   - Drag-and-drop reordering of ongoing tasks
+   - Confetti celebration animation on task completion
+   - Exit animation before task removal (no page refresh)
+   - Completed tasks sorted by most recent first (endDate desc, then id desc)
 
 2. **Time Tracking**:
    - Start/stop timer with task name
-   - Time distribution pie chart
+   - Time distribution doughnut chart (cutout 55%)
    - Task history and counters
 
 3. **Progress Visualization**:
-   - 30-day expected vs actual chart
-   - 7-day overview
-   - Current streak counter
+   - 30-day expected vs actual line chart
+   - 7-day overview cells
+   - Current streak counter with gradient card
 
 4. **Data Portability**:
    - Export all data as JSON file
@@ -216,11 +238,14 @@ dailiesapp/
 
 1. **Frontend**:
    - Minimize DOM manipulations
+   - Use `updateDisplayAfterTaskChange()` instead of `updateDisplay()` for task operations to avoid resetting the quote and replaying all animations
+   - Use `updateOngoingTasks(false)` to skip stagger animations on non-initial rebuilds
    - Efficient IndexedDB queries
    - Lazy loading for charts
    - Debounce frequent updates
    - Batch IndexedDB operations
    - Destroy old chart instances before creating new ones
+   - Scrollable containers (`max-h-[400px]` ongoing tasks, `max-h-[260px]` completed tasks) to prevent page stretching
 
 2. **Google Drive Operations**:
    - Batch file operations when possible
@@ -336,12 +361,16 @@ Example: `feat: Add dark mode support for time tracking pie chart`
 
 ## Additional Notes
 
-- The project uses Tailwind CSS v4.0.0
-- Chart.js is used for data visualization
-- Streamlit is used for the Python backend (deprecated)
-- SQLite for persistent storage in backend (deprecated)
-- IndexedDB for client-side storage in frontend
+- The project uses Tailwind CSS v3.4.17 built via @tailwindcss/cli v4.0.0
+- The `styles.css` file uses v3 directives (`@tailwind base/components/utilities`), NOT v4 `@import "tailwindcss"` syntax
+- Chart.js is used for data visualization (line chart for progress, doughnut for time distribution)
+- IndexedDB for client-side storage with three stores: `tasks`, `timeTracking`, `settings`
 - Export/Import functionality added for cross-machine data portability
 - Google Drive sync provides cloud backup option
 - No formal testing framework currently implemented
 - Manual testing required for all changes
+- Dashboard layout: 5-column grid (3 col left for ongoing tasks, 2 col right for stats + completed tasks)
+- Completed tasks card is in the right column, aligned below the 7-Day Overview card
+- Google Fonts loaded: Inter (weights 300-800) + Material Symbols Outlined
+- All custom CSS component classes are in `custom.css`, not inline or in `styles.css`
+- Backup files (`.bak`) exist from the UI redesign — can be safely deleted

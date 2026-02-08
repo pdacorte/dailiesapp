@@ -3,46 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Modern Dailies App</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <title>Dailies</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
     <link href="output.css" rel="stylesheet">
     <link href="custom.css" rel="stylesheet">
     <style>
       .material-symbols-outlined {
-        font-variation-settings:
-        'FILL' 0,
-        'wght' 400,
-        'GRAD' 0,
-        'opsz' 24
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
       }
       .material-symbols-outlined.fill {
         font-variation-settings: 'FILL' 1;
       }
-      
-      /* Sidebar collapse styles */
-      #sidebar.collapsed {
-        width: 80px;
-      }
-      
-      #sidebar.collapsed > div {
-        padding: 1rem 0.5rem;
-      }
-      
-      #sidebar.collapsed .sidebar-text {
-        display: none;
-      }
-      
-      #sidebar.collapsed .sidebar-content {
-        justify-content: flex-start;
-        padding: 0;
-        width: auto;
-      }
-      
-      #sidebar.collapsed .sidebar-content .size-10 {
-        display: none;
-      }
-      
+
+      /* Sidebar collapse */
+      #sidebar.collapsed { width: 72px; }
+      #sidebar.collapsed > div { padding: 1rem 0.5rem; }
+      #sidebar.collapsed .sidebar-text { display: none; }
+      #sidebar.collapsed .sidebar-content { justify-content: flex-start; padding: 0; width: auto; }
+      #sidebar.collapsed .sidebar-content .size-10 { display: none; }
       #sidebar.collapsed .sidebar-link,
       #sidebar.collapsed .sidebar-button {
         justify-content: center;
@@ -51,12 +30,8 @@
         gap: 0;
         min-width: auto;
       }
-      
       #sidebar.collapsed .sidebar-link span,
-      #sidebar.collapsed .sidebar-button span {
-        margin: 0;
-      }
-      
+      #sidebar.collapsed .sidebar-button span { margin: 0; }
       #sidebar.collapsed #sidebar-toggle {
         position: absolute;
         top: 0.5rem;
@@ -64,26 +39,16 @@
         z-index: 10;
         padding: 0.25rem;
       }
-      
       #sidebar.collapsed #sidebar-toggle span {
         transform: rotate(180deg);
         font-size: 1.25rem;
       }
-      
       #sidebar.collapsed > div > div:first-child > div:first-child {
         margin-bottom: 1.5rem;
         padding-top: 0.5rem;
       }
-      
-      #sidebar.collapsed .sidebar-content {
-        width: auto;
-      }
-      
       #sidebar.collapsed .sidebar-link,
-      #sidebar.collapsed .sidebar-button {
-        width: 100%;
-      }
-      
+      #sidebar.collapsed .sidebar-button { width: 100%; }
       #sidebar {
         position: sticky;
         top: 0;
@@ -92,452 +57,452 @@
         overflow-x: hidden;
         max-height: 100vh;
       }
-      
-      .sidebar-text {
-        transition: opacity 0.2s;
-      }
+      .sidebar-text { transition: opacity 0.2s ease; }
 
-      /* Mobile adjustments for sidebar and layout */
       @media (max-width: 640px) {
-        /* Make sidebar narrower on phones */
-        #sidebar {
-          width: 72px;
-        }
-
-        #sidebar > div {
-          padding: 0.75rem 0.25rem;
-        }
-
-        /* Hide text labels to keep proportions similar */
-        #sidebar:not(.collapsed) .sidebar-text {
-          display: none;
-        }
-
-        /* Slightly shrink avatar on phones */
-        #sidebar:not(.collapsed) .sidebar-content .size-10 {
-          width: 2.25rem;
-          height: 2.25rem;
-        }
-
-        /* Center icons in nav links/buttons */
+        #sidebar { width: 72px; }
+        #sidebar > div { padding: 0.75rem 0.25rem; }
+        #sidebar:not(.collapsed) .sidebar-text { display: none; }
+        #sidebar:not(.collapsed) .sidebar-content .size-10 { width: 2.25rem; height: 2.25rem; }
         #sidebar:not(.collapsed) .sidebar-link,
-        #sidebar:not(.collapsed) .sidebar-button {
-          justify-content: center;
-          padding-left: 0.25rem;
-          padding-right: 0.25rem;
-        }
-
-        /* Tuck toggle button closer to the edge */
-        #sidebar:not(.collapsed) #sidebar-toggle {
-          padding: 0.25rem;
-        }
-
-        /* So main content has a bit less padding on very small screens */
-        main {
-          padding: 1rem;
-        }
+        #sidebar:not(.collapsed) .sidebar-button { justify-content: center; padding-left: 0.25rem; padding-right: 0.25rem; }
+        #sidebar:not(.collapsed) #sidebar-toggle { padding: 0.25rem; }
+        main { padding: 1rem; }
       }
     </style>
-
 </head>
-<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 transition-colors duration-300">
+<body class="bg-zinc-50 dark:bg-zinc-950 text-zinc-800 dark:text-zinc-200 transition-colors duration-500">
     <div class="flex h-auto min-h-screen w-full flex-col">
         <div class="flex h-full grow flex-row relative">
-            <!-- Sidebar -->
-            <aside id="sidebar" class="flex-shrink-0 w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 h-screen sticky top-0 self-start transition-all duration-300">
+
+            <!-- ===== SIDEBAR ===== -->
+            <aside id="sidebar" class="flex-shrink-0 w-64 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border-r border-zinc-200/60 dark:border-zinc-800/60 h-screen sticky top-0 self-start transition-all duration-300 z-30">
                 <div class="flex h-full flex-col justify-between p-4">
                     <div class="flex flex-col gap-4">
+                        <!-- User Profile -->
                         <div class="flex items-center justify-between mb-2 relative">
                             <div class="flex gap-3 items-center px-2 sidebar-content w-4/5">
-                                <div id="user-avatar" class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10 bg-gradient-to-br from-blue-400 to-purple-500 flex-shrink-0"></div>
+                                <div id="user-avatar" class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10 bg-gradient-to-br from-indigo-500 to-violet-600 flex-shrink-0 ring-2 ring-white dark:ring-zinc-800 shadow-md"></div>
                                 <div class="flex flex-col sidebar-text flex-1 min-w-0">
-                                    <h1 id="user-name" class="text-gray-900 dark:text-white text-base font-medium leading-normal truncate">User</h1>
-                                    <p id="user-email" class="text-gray-500 dark:text-gray-400 text-sm font-normal leading-normal truncate">user@email.com</p>
+                                    <h1 id="user-name" class="text-zinc-900 dark:text-white text-sm font-semibold leading-tight truncate">User</h1>
+                                    <p id="user-email" class="text-zinc-400 dark:text-zinc-500 text-xs font-normal leading-tight truncate">user@email.com</p>
                                 </div>
                             </div>
-                            <button id="sidebar-toggle" onclick="toggleSidebar()" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors flex-shrink-0">
-                                <span class="material-symbols-outlined text-lg">chevron_left</span>
+                            <button id="sidebar-toggle" onclick="toggleSidebar()" class="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex-shrink-0">
+                                <span class="material-symbols-outlined text-lg text-zinc-400">chevron_left</span>
                             </button>
                         </div>
-                        <div class="flex flex-col gap-2 mt-6">
-                            <!-- Dashboard -->
-                            <a class="flex items-center gap-3 px-3 py-2 rounded-lg bg-blue-500/10 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400 sidebar-link" href="#" data-view="dashboard">
-                                <span class="material-symbols-outlined fill">dashboard</span>
-                                <p class="text-sm font-medium leading-normal sidebar-text">Dashboard</p>
+
+                        <!-- Navigation -->
+                        <div class="flex flex-col gap-1 mt-4">
+                            <a class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-xl bg-indigo-500/10 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-400 transition-all duration-200" href="#" data-view="dashboard">
+                                <span class="material-symbols-outlined fill text-xl">dashboard</span>
+                                <p class="text-sm font-medium sidebar-text">Dashboard</p>
                             </a>
-                            <!-- My Tasks -->
-                            <a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 sidebar-link" href="#" data-view="tasks">
-                                <span class="material-symbols-outlined">check_circle</span>
-                                <p class="text-sm font-medium leading-normal sidebar-text">My Tasks</p>
+                            <a class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-xl text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition-all duration-200" href="#" data-view="tasks">
+                                <span class="material-symbols-outlined text-xl">check_circle</span>
+                                <p class="text-sm font-medium sidebar-text">My Tasks</p>
                             </a>
-                            <!-- Time Overview -->
-                            <a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 sidebar-link" href="#" data-view="time">
-                                <span class="material-symbols-outlined">schedule</span>
-                                <p class="text-sm font-medium leading-normal sidebar-text">Time Overview</p>
+                            <a class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-xl text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition-all duration-200" href="#" data-view="time">
+                                <span class="material-symbols-outlined text-xl">schedule</span>
+                                <p class="text-sm font-medium sidebar-text">Time Overview</p>
                             </a>
-                            <!-- Calendar -->
-                            <a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 sidebar-link" href="#" data-view="calendar">
-                                <span class="material-symbols-outlined">calendar_today</span>
-                                <p class="text-sm font-medium leading-normal sidebar-text">Calendar</p>
+                            <a class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-xl text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition-all duration-200" href="#" data-view="calendar">
+                                <span class="material-symbols-outlined text-xl">calendar_today</span>
+                                <p class="text-sm font-medium sidebar-text">Calendar</p>
                             </a>
                         </div>
                     </div>
-                    <div class="flex flex-col gap-4">
-                        <button id="new-task-button" onclick="focusOnOngoingTasks()" class="flex min-w-[84px] w-full cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-blue-500 text-white text-sm font-bold leading-normal tracking-[0.015em] hover:bg-blue-600 transition-colors gap-2 sidebar-button">
-                            <span class="material-symbols-outlined">add</span>
+
+                    <!-- Bottom Actions -->
+                    <div class="flex flex-col gap-3">
+                        <button id="new-task-button" onclick="focusOnOngoingTasks()" class="sidebar-button flex w-full cursor-pointer items-center justify-center rounded-xl h-10 px-4 bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 active:scale-[0.98] transition-all duration-200 gap-2 shadow-md shadow-indigo-500/20">
+                            <span class="material-symbols-outlined text-lg">add</span>
                             <span class="truncate sidebar-text">New Task</span>
                         </button>
-                        <div class="flex flex-col gap-1">
-                              <a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 sidebar-link" href="#" onclick="exportDatabase()">
-                                  <span class="material-symbols-outlined">download</span>
-                                  <p class="text-sm font-medium leading-normal sidebar-text">Export Data</p>
-                              </a>
-                              <a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 sidebar-link" href="#" onclick="importDatabase()">
-                                  <span class="material-symbols-outlined">upload</span>
-                                  <p class="text-sm font-medium leading-normal sidebar-text">Import Data</p>
-                              </a>
-                              <a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 sidebar-link" href="#" onclick="syncWithCloud()">
-                                  <span class="material-symbols-outlined">cloud_sync</span>
-                                  <p class="text-sm font-medium leading-normal sidebar-text">Cloud Sync</p>
-                              </a>
-                              <a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 sidebar-link" href="#" data-view="settings">
-                                  <span class="material-symbols-outlined">settings</span>
-                                  <p class="text-sm font-medium leading-normal sidebar-text">Settings</p>
-                              </a>
-                              <a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 sidebar-link" href="#" onclick="showHelp()">
-                                  <span class="material-symbols-outlined">help</span>
-                                  <p class="text-sm font-medium leading-normal sidebar-text">Help</p>
-                              </a>
-                          </div>
+                        <div class="flex flex-col gap-0.5">
+                            <a class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-xl text-zinc-500 dark:text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 hover:text-zinc-700 dark:hover:text-zinc-300 transition-all duration-200" href="#" onclick="exportDatabase()">
+                                <span class="material-symbols-outlined text-xl">download</span>
+                                <p class="text-xs font-medium sidebar-text">Export</p>
+                            </a>
+                            <a class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-xl text-zinc-500 dark:text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 hover:text-zinc-700 dark:hover:text-zinc-300 transition-all duration-200" href="#" onclick="importDatabase()">
+                                <span class="material-symbols-outlined text-xl">upload</span>
+                                <p class="text-xs font-medium sidebar-text">Import</p>
+                            </a>
+                            <a class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-xl text-zinc-500 dark:text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 hover:text-zinc-700 dark:hover:text-zinc-300 transition-all duration-200" href="#" onclick="syncWithCloud()">
+                                <span class="material-symbols-outlined text-xl">cloud_sync</span>
+                                <p class="text-xs font-medium sidebar-text">Cloud Sync</p>
+                            </a>
+                            <a class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-xl text-zinc-500 dark:text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 hover:text-zinc-700 dark:hover:text-zinc-300 transition-all duration-200" href="#" data-view="settings">
+                                <span class="material-symbols-outlined text-xl">settings</span>
+                                <p class="text-xs font-medium sidebar-text">Settings</p>
+                            </a>
+                            <a class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-xl text-zinc-500 dark:text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 hover:text-zinc-700 dark:hover:text-zinc-300 transition-all duration-200" href="#" onclick="showHelp()">
+                                <span class="material-symbols-outlined text-xl">help</span>
+                                <p class="text-xs font-medium sidebar-text">Help</p>
+                            </a>
+                        </div>
                     </div>
                 </div>
             </aside>
 
-            <!-- Main Content -->
+            <!-- ===== MAIN CONTENT ===== -->
             <main class="flex-1 min-w-0 p-6 lg:p-10">
-                <div class="w-full max-w-7xl mx-auto">
-                    <header class="mb-8">
+                <div class="w-full max-w-[90rem] mx-auto">
+
+                    <!-- Header -->
+                    <header class="mb-8 animate-fade-in">
                         <div id="today-info" class="text-base md:text-lg"></div>
                     </header>
 
-        <div id="dashboard-section" class="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-                <h2 class="text-2xl font-semibold mb-4">Ongoing Tasks</h2>
-                <div id="ongoing-tasks" class="space-y-4 mb-6"></div>
+                    <!-- ===== DASHBOARD SECTION ===== -->
+                    <div id="dashboard-section" class="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-slide-up items-start">
 
-                <form id="add-task-form" class="space-y-4 mb-6">
-                    <h3 class="text-xl font-semibold">Add New Task</h3>
-                    <input type="text" id="task-input" placeholder="Enter task..." required
-                           class="w-full px-4 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <select id="task-type" required
-                            class="w-full px-4 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="Goal">Goal</option>
-                        <option value="Non-Negotiable">Non-Negotiable</option>
-                    </select>
-                    <button type="submit" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md transition duration-300">
-                        Add Task
-                    </button>
-                </form>
+                        <!-- Left Column: Tasks -->
+                        <div class="lg:col-span-7 space-y-6">
+                            <!-- Ongoing Tasks Card -->
+                            <div class="card">
+                                <div class="flex items-center justify-between mb-5">
+                                    <h2 class="text-lg font-semibold text-zinc-900 dark:text-white">Ongoing Tasks</h2>
+                                    <span class="text-xs font-medium text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Active</span>
+                                </div>
+                                <div id="ongoing-tasks" class="space-y-2 mb-6 min-h-[48px] max-h-[400px] overflow-y-auto custom-scrollbar"></div>
 
-                <div class="border-t pt-6">
-                    <h3 class="text-xl font-semibold mb-4">Chart Settings</h3>
-                    <div class="flex items-center space-x-2">
-                        <label for="expected-tasks" class="text-sm">Expected Daily Tasks:</label>
-                        <input type="number" id="expected-tasks" min="1" value="1" 
-                               class="w-20 px-2 py-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-                </div>
-            </div>
+                                <!-- Add Task Form -->
+                                <form id="add-task-form" class="space-y-3 pt-5 border-t border-zinc-100 dark:border-zinc-800">
+                                    <div class="flex items-center gap-3">
+                                        <input type="text" id="task-input" placeholder="What needs to be done?" required
+                                               class="input-field flex-1">
+                                        <select id="task-type" required class="input-field w-auto min-w-[140px]">
+                                            <option value="Goal">Goal</option>
+                                            <option value="Non-Negotiable">Non-Negotiable</option>
+                                        </select>
+                                        <button type="submit" class="btn-primary h-10 px-5 flex-shrink-0">
+                                            <span class="material-symbols-outlined text-lg">add</span>
+                                            Add
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
 
-            <div class="space-y-8">
-                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-                    <h2 class="text-2xl font-semibold mb-4">Statistics</h2>
-                    <div class="text-center mb-6">
-                        <h3 class="text-xl font-semibold mb-2">🔥 Current Streak</h3>
-                        <span id="streak-count" class="text-3xl font-bold">0 days</span>
-                    </div>
-                    <div class="chart-container h-64">
-                        <canvas id="progress-chart"></canvas>
-                    </div>
-                </div>
+                            <!-- Completed Tasks Card -->
+                            <div class="card">
+                                <div class="flex items-center justify-between mb-5">
+                                    <h2 id="completed-tasks-heading" class="text-lg font-semibold text-zinc-900 dark:text-white">Recent Completions</h2>
+                                    <span class="material-symbols-outlined text-emerald-500 text-xl">task_alt</span>
+                                </div>
+                                <div id="completed-tasks" class="space-y-2 max-h-[260px] overflow-y-auto custom-scrollbar"></div>
+                            </div>
+                        </div>
 
-                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-                    <h2 class="text-2xl font-semibold mb-4">Last 7 Days Overview</h2>
-                    <div id="seven-day-overview" class="grid grid-cols-7 gap-2"></div>
-                </div>
+                        <!-- Right Column: Stats -->
+                        <div class="lg:col-span-5 space-y-6">
+                            <!-- Streak Card -->
+                            <div class="card card-gradient-streak text-center relative overflow-hidden">
+                                <div class="relative z-10">
+                                    <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-sm mb-3">
+                                        <span class="text-2xl">&#x1F525;</span>
+                                    </div>
+                                    <p class="text-sm font-medium text-white/80 mb-1">Current Streak</p>
+                                    <span id="streak-count" class="text-4xl font-bold text-white tracking-tight">0 days</span>
+                                </div>
+                                <div class="absolute -top-8 -right-8 w-32 h-32 bg-white/10 rounded-full blur-xl"></div>
+                                <div class="absolute -bottom-6 -left-6 w-24 h-24 bg-white/10 rounded-full blur-lg"></div>
+                            </div>
 
-                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-                    <h2 id="completed-tasks-heading" class="text-2xl font-semibold mb-4">Last 5 Completed Tasks</h2>
-                    <div id="completed-tasks" class="space-y-4"></div>
-                </div>
-            </div>
-        </div>
-        <!-- Time Tracker + Time Overview Section -->
-        <div class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-8">
-            <!-- Time Tracker Section -->
-            <div id="time-tracker-section" class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-                <h2 class="text-2xl font-semibold mb-4">Time Tracker</h2>
-                
-                <!-- Timer Input and Controls -->
-                <div class="space-y-4 mb-6">
-                    <input type="text" id="timer-task-input" placeholder="Enter task name..." 
-                        class="w-full px-4 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <div class="flex items-center space-x-4">
-                        <button id="timer-control-btn" onclick="toggleTimer()" 
-                                class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-6 rounded-md transition duration-300">
-                            Start
-                        </button>
-                        <div id="timer-display" class="text-xl font-mono text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-700 px-4 py-2 rounded-md ml-5">
-                            00:00:00
+                            <!-- Progress Chart Card -->
+                            <div class="card">
+                                <div class="flex items-center justify-between mb-4">
+                                    <h2 class="text-lg font-semibold text-zinc-900 dark:text-white">Progress</h2>
+                                    <div class="flex items-center gap-2">
+                                        <label for="expected-tasks" class="text-xs text-zinc-400">Daily goal:</label>
+                                        <input type="number" id="expected-tasks" min="1" value="1"
+                                               class="w-14 px-2 py-1 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 transition-shadow">
+                                    </div>
+                                </div>
+                                <div class="chart-container h-52">
+                                    <canvas id="progress-chart"></canvas>
+                                </div>
+                            </div>
+
+                            <!-- 7-Day Overview Card -->
+                            <div class="card">
+                                <h2 class="text-lg font-semibold text-zinc-900 dark:text-white mb-4">Last 7 Days</h2>
+                                <div id="seven-day-overview" class="grid grid-cols-7 gap-1.5"></div>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <!-- Task Time Counters -->
-                <div class="border-t pt-6 mb-6">
-                    <h3 class="text-xl font-semibold mb-4">Total Time by Task</h3>
-                    <div id="task-counters" class="space-y-4">
-                        <!-- Task counters will be dynamically inserted here -->
+                    <!-- ===== TIME TRACKER + OVERVIEW SECTION ===== -->
+                    <div class="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6 animate-slide-up" style="animation-delay: 0.1s">
+
+                        <!-- Time Tracker -->
+                        <div id="time-tracker-section" class="card">
+                            <div class="flex items-center justify-between mb-5">
+                                <h2 class="text-lg font-semibold text-zinc-900 dark:text-white">Time Tracker</h2>
+                                <span class="material-symbols-outlined text-indigo-500 text-xl">timer</span>
+                            </div>
+
+                            <!-- Timer Controls -->
+                            <div class="space-y-4 mb-6">
+                                <input type="text" id="timer-task-input" placeholder="What are you working on?"
+                                       class="input-field w-full">
+                                <div class="flex items-center gap-4">
+                                    <button id="timer-control-btn" onclick="toggleTimer()"
+                                            class="btn-success h-10 px-6 flex items-center gap-2">
+                                        <span class="material-symbols-outlined text-lg">play_arrow</span>
+                                        Start
+                                    </button>
+                                    <div id="timer-display" class="timer-display">
+                                        00:00:00
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Task Counters -->
+                            <div class="border-t border-zinc-100 dark:border-zinc-800 pt-5 mb-5">
+                                <h3 class="text-sm font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-3">Total by Task</h3>
+                                <div id="task-counters" class="space-y-2"></div>
+                            </div>
+
+                            <!-- Task History -->
+                            <div class="border-t border-zinc-100 dark:border-zinc-800 pt-5">
+                                <h3 class="text-sm font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-3">Recent Sessions</h3>
+                                <div id="task-history" class="space-y-2"></div>
+                            </div>
+                        </div>
+
+                        <!-- Time Distribution Pie Chart -->
+                        <div id="time-overview-section" class="card">
+                            <div class="flex items-center justify-between mb-5">
+                                <h2 class="text-lg font-semibold text-zinc-900 dark:text-white">Time Distribution</h2>
+                                <span class="material-symbols-outlined text-violet-500 text-xl">pie_chart</span>
+                            </div>
+                            <div class="chart-container h-64">
+                                <canvas id="time-pie-chart"></canvas>
+                            </div>
+                        </div>
                     </div>
-                </div>
 
-                <!-- Task History -->
-                <div class="border-t pt-6">
-                    <h3 class="text-xl font-semibold mb-4">Recent Sessions (Last 3)</h3>
-                    <div id="task-history" class="space-y-4">
-                        <!-- Task history will be dynamically inserted here -->
+                    <!-- ===== CALENDAR SECTION ===== -->
+                    <div id="calendar-section" class="mt-6 animate-slide-up" style="animation-delay: 0.15s">
+                        <div class="card overflow-hidden p-0">
+                            <iframe src="https://calendar.google.com/calendar/embed?src=3affb7794a32640ea8df6025a69c72c648d7a76bc853969c65afbac27112029c%40group.calendar.google.com&height=600&wkst=1&ctz=Europe%2FBerlin&showPrint=0&showCalendars=0&showDate=0&showNav=0&showTitle=0&showTz=0&mode=AGENDA&&color=%238e24aa"
+                                    style="border-width:0" width="100%" height="600" frameborder="0" scrolling="no" class="rounded-2xl"></iframe>
+                        </div>
                     </div>
-                </div>
-            </div>
 
-            <!-- Pie Chart for Time Distribution -->
-            <div id="time-overview-section" class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-                <h2 class="text-2xl font-semibold mb-4">Time Distribution</h2>
-                <div class="chart-container h-64">
-                    <canvas id="time-pie-chart"></canvas>
+                    <!-- ===== SETTINGS SECTION ===== -->
+                    <div id="settings-section" class="hidden animate-slide-up">
+                        <div class="card">
+                            <h2 class="text-xl font-semibold text-zinc-900 dark:text-white mb-6">Settings</h2>
+
+                            <div class="space-y-8">
+                                <!-- Google Drive Integration -->
+                                <div class="pb-6 border-b border-zinc-100 dark:border-zinc-800">
+                                    <h3 class="text-base font-semibold text-zinc-900 dark:text-white mb-2">Google Drive Integration</h3>
+                                    <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-4">
+                                        Enter your Google Drive API Client ID to enable cloud backup.
+                                        <a href="https://console.cloud.google.com/" target="_blank" class="text-indigo-500 hover:text-indigo-600 underline underline-offset-2 transition-colors">Get your Client ID</a>
+                                    </p>
+                                    <div class="space-y-4">
+                                        <div>
+                                            <label for="google-drive-api-key" class="label-text">Google Drive API Client ID</label>
+                                            <input type="password" id="google-drive-api-key" placeholder="Enter your Client ID"
+                                                   class="input-field w-full mt-1">
+                                            <p class="text-xs text-zinc-400 mt-1.5">Stored securely in your browser's database.</p>
+                                        </div>
+                                        <div class="flex flex-wrap gap-2">
+                                            <button onclick="saveGoogleDriveApiKey()" class="btn-primary h-9 px-4 text-sm">Save Key</button>
+                                            <button onclick="testGoogleDriveApiKey()" class="btn-success h-9 px-4 text-sm">Test Connection</button>
+                                            <button onclick="clearGoogleDriveApiKey()" class="btn-ghost h-9 px-4 text-sm">Clear Key</button>
+                                        </div>
+                                        <div id="api-key-status" class="hidden p-3 rounded-xl text-sm"></div>
+                                    </div>
+                                </div>
+
+                                <!-- App Settings -->
+                                <div>
+                                    <h3 class="text-base font-semibold text-zinc-900 dark:text-white mb-4">App Settings</h3>
+                                    <div class="space-y-5">
+                                        <div class="flex items-center justify-between">
+                                            <div>
+                                                <h4 class="text-sm font-medium text-zinc-700 dark:text-zinc-300">Auto-save Interval</h4>
+                                                <p class="text-xs text-zinc-400 mt-0.5">How often to auto-save your data</p>
+                                            </div>
+                                            <select id="auto-save-interval" class="input-field w-auto text-sm">
+                                                <option value="1">1 minute</option>
+                                                <option value="5" selected>5 minutes</option>
+                                                <option value="10">10 minutes</option>
+                                                <option value="30">30 minutes</option>
+                                            </select>
+                                        </div>
+                                        <div class="flex items-center justify-between">
+                                            <div>
+                                                <h4 class="text-sm font-medium text-zinc-700 dark:text-zinc-300">Default Task Type</h4>
+                                                <p class="text-xs text-zinc-400 mt-0.5">Type when adding new tasks</p>
+                                            </div>
+                                            <select id="default-task-type" class="input-field w-auto text-sm">
+                                                <option value="Goal" selected>Goal</option>
+                                                <option value="Non-Negotiable">Non-Negotiable</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ===== HELP SECTION ===== -->
+                    <div id="help-section" class="hidden animate-slide-up">
+                        <div class="card">
+                            <h2 class="text-xl font-semibold text-zinc-900 dark:text-white mb-6">Help &amp; Guide</h2>
+
+                            <div class="space-y-8">
+                                <!-- Getting Started -->
+                                <div class="pb-6 border-b border-zinc-100 dark:border-zinc-800">
+                                    <h3 class="text-base font-semibold text-zinc-900 dark:text-white mb-4 flex items-center gap-2">
+                                        <span class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-indigo-50 dark:bg-indigo-500/10">
+                                            <span class="material-symbols-outlined text-indigo-500 text-lg">rocket_launch</span>
+                                        </span>
+                                        Getting Started
+                                    </h3>
+                                    <div class="space-y-3 pl-9">
+                                        <div class="flex items-start gap-3">
+                                            <span class="material-symbols-outlined text-indigo-400 mt-0.5 text-lg">check_circle</span>
+                                            <div>
+                                                <h4 class="text-sm font-medium text-zinc-700 dark:text-zinc-300">Add Your First Task</h4>
+                                                <p class="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Use the form in the Ongoing Tasks section or click "+ New Task" in the sidebar.</p>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-start gap-3">
+                                            <span class="material-symbols-outlined text-indigo-400 mt-0.5 text-lg">schedule</span>
+                                            <div>
+                                                <h4 class="text-sm font-medium text-zinc-700 dark:text-zinc-300">Track Your Time</h4>
+                                                <p class="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Use the Time Tracker to log time. Enter a task name and click Start/Stop.</p>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-start gap-3">
+                                            <span class="material-symbols-outlined text-indigo-400 mt-0.5 text-lg">trending_up</span>
+                                            <div>
+                                                <h4 class="text-sm font-medium text-zinc-700 dark:text-zinc-300">Monitor Progress</h4>
+                                                <p class="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Check Statistics to see your streak, progress chart, and 7-day overview.</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Task Management -->
+                                <div class="pb-6 border-b border-zinc-100 dark:border-zinc-800">
+                                    <h3 class="text-base font-semibold text-zinc-900 dark:text-white mb-4 flex items-center gap-2">
+                                        <span class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-500/10">
+                                            <span class="material-symbols-outlined text-emerald-500 text-lg">flag</span>
+                                        </span>
+                                        Task Management
+                                    </h3>
+                                    <div class="space-y-3 pl-9">
+                                        <div class="flex items-start gap-3">
+                                            <span class="material-symbols-outlined text-emerald-400 mt-0.5 text-lg">flag</span>
+                                            <div>
+                                                <h4 class="text-sm font-medium text-zinc-700 dark:text-zinc-300">Task Types</h4>
+                                                <p class="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5"><strong>Goals:</strong> Regular tasks. <strong>Non-Negotiable:</strong> Essential tasks that auto-create daily.</p>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-start gap-3">
+                                            <span class="material-symbols-outlined text-emerald-400 mt-0.5 text-lg">done</span>
+                                            <div>
+                                                <h4 class="text-sm font-medium text-zinc-700 dark:text-zinc-300">Completing Tasks</h4>
+                                                <p class="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Click the checkmark next to any task to mark it as completed.</p>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-start gap-3">
+                                            <span class="material-symbols-outlined text-emerald-400 mt-0.5 text-lg">delete</span>
+                                            <div>
+                                                <h4 class="text-sm font-medium text-zinc-700 dark:text-zinc-300">Deleting Tasks</h4>
+                                                <p class="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Click the delete icon to remove a task from your list.</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Time Tracking -->
+                                <div class="pb-6 border-b border-zinc-100 dark:border-zinc-800">
+                                    <h3 class="text-base font-semibold text-zinc-900 dark:text-white mb-4 flex items-center gap-2">
+                                        <span class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-violet-50 dark:bg-violet-500/10">
+                                            <span class="material-symbols-outlined text-violet-500 text-lg">timer</span>
+                                        </span>
+                                        Time Tracking
+                                    </h3>
+                                    <div class="space-y-3 pl-9">
+                                        <div class="flex items-start gap-3">
+                                            <span class="material-symbols-outlined text-violet-400 mt-0.5 text-lg">play_arrow</span>
+                                            <div>
+                                                <h4 class="text-sm font-medium text-zinc-700 dark:text-zinc-300">Starting a Timer</h4>
+                                                <p class="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Enter a task name in the Time Tracker and click Start.</p>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-start gap-3">
+                                            <span class="material-symbols-outlined text-violet-400 mt-0.5 text-lg">pie_chart</span>
+                                            <div>
+                                                <h4 class="text-sm font-medium text-zinc-700 dark:text-zinc-300">Time Distribution</h4>
+                                                <p class="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">View how your time is distributed across tasks via the pie chart.</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Data Management -->
+                                <div>
+                                    <h3 class="text-base font-semibold text-zinc-900 dark:text-white mb-4 flex items-center gap-2">
+                                        <span class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-amber-50 dark:bg-amber-500/10">
+                                            <span class="material-symbols-outlined text-amber-500 text-lg">cloud_sync</span>
+                                        </span>
+                                        Data &amp; Sync
+                                    </h3>
+                                    <div class="space-y-3 pl-9">
+                                        <div class="flex items-start gap-3">
+                                            <span class="material-symbols-outlined text-amber-400 mt-0.5 text-lg">download</span>
+                                            <div>
+                                                <h4 class="text-sm font-medium text-zinc-700 dark:text-zinc-300">Export Data</h4>
+                                                <p class="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Backup your tasks and time tracking data to a JSON file.</p>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-start gap-3">
+                                            <span class="material-symbols-outlined text-amber-400 mt-0.5 text-lg">upload</span>
+                                            <div>
+                                                <h4 class="text-sm font-medium text-zinc-700 dark:text-zinc-300">Import Data</h4>
+                                                <p class="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Restore from a previously exported JSON backup.</p>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-start gap-3">
+                                            <span class="material-symbols-outlined text-amber-400 mt-0.5 text-lg">cloud_sync</span>
+                                            <div>
+                                                <h4 class="text-sm font-medium text-zinc-700 dark:text-zinc-300">Cloud Sync</h4>
+                                                <p class="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Sync with Google Drive for backups and cross-device access.</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Reset Database -->
+                    <div id="reset-database-section" class="mt-8 text-center pb-8">
+                        <button onclick="resetDatabase()" class="inline-flex items-center gap-2 text-xs font-medium text-zinc-400 hover:text-red-500 dark:text-zinc-600 dark:hover:text-red-400 transition-colors duration-200 px-4 py-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/5">
+                            <span class="material-symbols-outlined text-base">warning</span>
+                            Reset Database
+                        </button>
+                    </div>
+
                 </div>
+            </main>
         </div>
     </div>
 
-        <div id="calendar-section" class="mt-8 justify-center">
-            <!-- Shift + Alt + Arrow = Multiselect for line -->
-            <iframe src="https://calendar.google.com/calendar/embed?src=3affb7794a32640ea8df6025a69c72c648d7a76bc853969c65afbac27112029c%40group.calendar.google.com&height=600&wkst=1&ctz=Europe%2FBerlin&showPrint=0&showCalendars=0&showDate=0&showNav=0&showTitle=0&showTz=0&mode=AGENDA&&color=%238e24aa" style="border-width:0" width="100%" height="600" frameborder="0" scrolling="no"></iframe>        </div>
-
-                     <!-- Settings Section -->
-                     <div id="settings-section" class="hidden">
-                         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-                             <h2 class="text-2xl font-semibold mb-6">Settings</h2>
-                             
-                             <div class="space-y-6">
-                                 <!-- Google Drive API Key Section -->
-                                 <div class="border-b pb-6">
-                                     <h3 class="text-xl font-semibold mb-4">Google Drive Integration</h3>
-                                     <p class="text-gray-600 dark:text-gray-400 mb-4">
-                                         Enter your Google Drive API Client ID to enable cloud backup functionality.
-                                         <a href="https://console.cloud.google.com/" target="_blank" class="text-blue-500 hover:text-blue-600 underline">Get your Client ID</a>
-                                     </p>
-                                     
-                                     <div class="space-y-4">
-                                         <div>
-                                             <label for="google-drive-api-key" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                                 Google Drive API Client ID
-                                             </label>
-                                             <input type="password" id="google-drive-api-key" placeholder="Enter your Google Drive API Client ID"
-                                                    class="w-full px-4 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                             <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                                                 Your API key is stored securely in your browser's database.
-                                             </p>
-                                         </div>
-                                         
-                                         <div class="flex gap-3">
-                                             <button onclick="saveGoogleDriveApiKey()" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md transition duration-300">
-                                                 Save API Key
-                                             </button>
-                                             <button onclick="testGoogleDriveApiKey()" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-md transition duration-300">
-                                                 Test Connection
-                                             </button>
-                                             <button onclick="clearGoogleDriveApiKey()" class="bg-gray-300 hover:bg-gray-400 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 font-semibold py-2 px-4 rounded-md transition duration-300">
-                                                 Clear Key
-                                             </button>
-                                         </div>
-                                         
-                                         <div id="api-key-status" class="hidden p-3 rounded-md"></div>
-                                     </div>
-                                 </div>
-                                 
-                                 <!-- Other Settings -->
-                                 <div>
-                                     <h3 class="text-xl font-semibold mb-4">App Settings</h3>
-                                     <div class="space-y-4">
-                                         <div class="flex items-center justify-between">
-                                             <div>
-                                                 <h4 class="font-medium text-gray-700 dark:text-gray-300">Auto-save Interval</h4>
-                                                 <p class="text-sm text-gray-500 dark:text-gray-400">How often to auto-save your data</p>
-                                             </div>
-                                             <select id="auto-save-interval" class="px-4 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                                 <option value="1">1 minute</option>
-                                                 <option value="5" selected>5 minutes</option>
-                                                 <option value="10">10 minutes</option>
-                                                 <option value="30">30 minutes</option>
-                                             </select>
-                                         </div>
-                                         
-                                         <div class="flex items-center justify-between">
-                                             <div>
-                                                 <h4 class="font-medium text-gray-700 dark:text-gray-300">Default Task Type</h4>
-                                                 <p class="text-sm text-gray-500 dark:text-gray-400">Default task type when adding new tasks</p>
-                                             </div>
-                                             <select id="default-task-type" class="px-4 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                                 <option value="Goal" selected>Goal</option>
-                                                 <option value="Non-Negotiable">Non-Negotiable</option>
-                                             </select>
-                                         </div>
-                                     </div>
-                                 </div>
-                             </div>
-                         </div>
-                      </div>
-
-                      <!-- Help Section -->
-                      <div id="help-section" class="hidden">
-                          <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-                              <h2 class="text-2xl font-semibold mb-6">App Help & Guide</h2>
-                              
-                              <div class="space-y-6">
-                                  <!-- Getting Started -->
-                                  <div class="border-b pb-6">
-                                      <h3 class="text-xl font-semibold mb-4">Getting Started</h3>
-                                      <div class="space-y-3">
-                                          <div class="flex items-start gap-3">
-                                              <span class="material-symbols-outlined text-blue-500 mt-0.5">check_circle</span>
-                                              <div>
-                                                  <h4 class="font-medium text-gray-700 dark:text-gray-300">Add Your First Task</h4>
-                                                  <p class="text-gray-600 dark:text-gray-400">Click the "+ New Task" button in the sidebar or use the form in the Ongoing Tasks section to add tasks.</p>
-                                              </div>
-                                          </div>
-                                          <div class="flex items-start gap-3">
-                                              <span class="material-symbols-outlined text-blue-500 mt-0.5">schedule</span>
-                                              <div>
-                                                  <h4 class="font-medium text-gray-700 dark:text-gray-300">Track Your Time</h4>
-                                                  <p class="text-gray-600 dark:text-gray-400">Use the Time Tracker to log time spent on tasks. Enter a task name and click Start/Stop.</p>
-                                              </div>
-                                          </div>
-                                          <div class="flex items-start gap-3">
-                                              <span class="material-symbols-outlined text-blue-500 mt-0.5">trending_up</span>
-                                              <div>
-                                                  <h4 class="font-medium text-gray-700 dark:text-gray-300">Monitor Progress</h4>
-                                                  <p class="text-gray-600 dark:text-gray-400">Check the Statistics section to see your streak, progress chart, and 7-day overview.</p>
-                                              </div>
-                                          </div>
-                                      </div>
-                                  </div>
-                                  
-                                  <!-- Task Management -->
-                                  <div class="border-b pb-6">
-                                      <h3 class="text-xl font-semibold mb-4">Task Management</h3>
-                                      <div class="space-y-3">
-                                          <div class="flex items-start gap-3">
-                                              <span class="material-symbols-outlined text-green-500 mt-0.5">flag</span>
-                                              <div>
-                                                  <h4 class="font-medium text-gray-700 dark:text-gray-300">Task Types</h4>
-                                                  <p class="text-gray-600 dark:text-gray-400"><strong>Goals:</strong> Regular tasks you want to accomplish. <strong>Non-Negotiable:</strong> Essential tasks that auto-create for the next day if not completed.</p>
-                                              </div>
-                                          </div>
-                                          <div class="flex items-start gap-3">
-                                              <span class="material-symbols-outlined text-green-500 mt-0.5">done</span>
-                                              <div>
-                                                  <h4 class="font-medium text-gray-700 dark:text-gray-300">Completing Tasks</h4>
-                                                  <p class="text-gray-600 dark:text-gray-400">Click the checkmark next to any task to mark it as completed. Completed tasks move to the history section.</p>
-                                              </div>
-                                          </div>
-                                          <div class="flex items-start gap-3">
-                                              <span class="material-symbols-outlined text-green-500 mt-0.5">delete</span>
-                                              <div>
-                                                  <h4 class="font-medium text-gray-700 dark:text-gray-300">Deleting Tasks</h4>
-                                                  <p class="text-gray-600 dark:text-gray-400">Click the trash icon next to any task to remove it from your list.</p>
-                                              </div>
-                                          </div>
-                                      </div>
-                                  </div>
-                                  
-                                  <!-- Time Tracking -->
-                                  <div class="border-b pb-6">
-                                      <h3 class="text-xl font-semibold mb-4">Time Tracking</h3>
-                                      <div class="space-y-3">
-                                          <div class="flex items-start gap-3">
-                                              <span class="material-symbols-outlined text-purple-500 mt-0.5">play_arrow</span>
-                                              <div>
-                                                  <h4 class="font-medium text-gray-700 dark:text-gray-300">Starting a Timer</h4>
-                                                  <p class="text-gray-600 dark:text-gray-400">Enter a task name in the Time Tracker and click Start. The timer will run until you click Stop.</p>
-                                              </div>
-                                          </div>
-                                          <div class="flex items-start gap-3">
-                                              <span class="material-symbols-outlined text-purple-500 mt-0.5">pie_chart</span>
-                                              <div>
-                                                  <h4 class="font-medium text-gray-700 dark:text-gray-300">Time Distribution</h4>
-                                                  <p class="text-gray-600 dark:text-gray-400">View the pie chart to see how your time is distributed across different tasks.</p>
-                                              </div>
-                                          </div>
-                                          <div class="flex items-start gap-3">
-                                              <span class="material-symbols-outlined text-purple-500 mt-0.5">history</span>
-                                              <div>
-                                                  <h4 class="font-medium text-gray-700 dark:text-gray-300">Session History</h4>
-                                                  <p class="text-gray-600 dark:text-gray-400">Check the Recent Sessions section to see your last 3 time tracking sessions.</p>
-                                              </div>
-                                          </div>
-                                      </div>
-                                  </div>
-                                  
-                                  <!-- Data Management -->
-                                  <div>
-                                      <h3 class="text-xl font-semibold mb-4">Data & Settings</h3>
-                                      <div class="space-y-3">
-                                          <div class="flex items-start gap-3">
-                                              <span class="material-symbols-outlined text-orange-500 mt-0.5">download</span>
-                                              <div>
-                                                  <h4 class="font-medium text-gray-700 dark:text-gray-300">Export Data</h4>
-                                                  <p class="text-gray-600 dark:text-gray-400">Backup all your tasks and time tracking data to a JSON file for safekeeping.</p>
-                                              </div>
-                                          </div>
-                                          <div class="flex items-start gap-3">
-                                              <span class="material-symbols-outlined text-orange-500 mt-0.5">upload</span>
-                                              <div>
-                                                  <h4 class="font-medium text-gray-700 dark:text-gray-300">Import Data</h4>
-                                                  <p class="text-gray-600 dark:text-gray-400">Restore your data from a previously exported JSON backup file.</p>
-                                              </div>
-                                          </div>
-                                          <div class="flex items-start gap-3">
-                                              <span class="material-symbols-outlined text-orange-500 mt-0.5">cloud_sync</span>
-                                              <div>
-                                                  <h4 class="font-medium text-gray-700 dark:text-gray-300">Cloud Sync</h4>
-                                                  <p class="text-gray-600 dark:text-gray-400">Sync your data with Google Drive for automatic backups and cross-device access.</p>
-                                              </div>
-                                          </div>
-                                          <div class="flex items-start gap-3">
-                                              <span class="material-symbols-outlined text-orange-500 mt-0.5">settings</span>
-                                              <div>
-                                                  <h4 class="font-medium text-gray-700 dark:text-gray-300">Settings</h4>
-                                                  <p class="text-gray-600 dark:text-gray-400">Configure Google Drive API, auto-save intervals, and default task types.</p>
-                                              </div>
-                                          </div>
-                                      </div>
-                                  </div>
-                              </div>
-                          </div>
-                      </div>
-
-                      <div id="reset-database-section" class="mt-8 text-center">
-                         <button onclick="resetDatabase()" class="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-md transition duration-300">
-                             Reset Database
-                         </button>
-                     </div>
-                  </div>
-              </main>
-        </div>
-    </div>
-
-    <button id="theme-toggle" class="fixed top-4 right-4 bg-gray-200 dark:bg-gray-700 p-2 rounded-full shadow-md">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <!-- Theme Toggle -->
+    <button id="theme-toggle" class="fixed bottom-6 right-6 w-11 h-11 bg-white dark:bg-zinc-800 rounded-full shadow-lg shadow-zinc-200/50 dark:shadow-zinc-900/50 border border-zinc-200/60 dark:border-zinc-700/60 flex items-center justify-center hover:scale-110 active:scale-95 transition-all duration-300 z-50 group">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-zinc-600 dark:text-zinc-300 group-hover:rotate-12 transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
         </svg>
     </button>
@@ -547,4 +512,3 @@
     <script src="app.js"></script>
 </body>
 </html>
-

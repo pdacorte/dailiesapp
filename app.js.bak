@@ -280,14 +280,10 @@ function setActiveNav(view) {
 
     // Reset classes
     link.classList.remove(
-      "bg-indigo-500/10",
-      "text-indigo-600",
-      "dark:bg-indigo-500/15",
-      "dark:text-indigo-400",
-    );
-    link.classList.add(
-      "text-zinc-600",
-      "dark:text-zinc-400",
+      "bg-blue-500/10",
+      "text-blue-600",
+      "dark:bg-blue-500/20",
+      "dark:text-blue-400",
     );
     if (icon) {
       icon.classList.remove("fill");
@@ -295,15 +291,11 @@ function setActiveNav(view) {
 
     // Apply active styles to the selected view
     if (link.dataset.view === view) {
-      link.classList.remove(
-        "text-zinc-600",
-        "dark:text-zinc-400",
-      );
       link.classList.add(
-        "bg-indigo-500/10",
-        "text-indigo-600",
-        "dark:bg-indigo-500/15",
-        "dark:text-indigo-400",
+        "bg-blue-500/10",
+        "text-blue-600",
+        "dark:bg-blue-500/20",
+        "dark:text-blue-400",
       );
       if (icon) {
         icon.classList.add("fill");
@@ -528,118 +520,43 @@ function addTask() {
 
 // Mark a task as complete and create next day's task if Non-Negotiable
 function completeTask(taskId) {
-  // Look up the task type first for animation branching
-  const taskElement = document.querySelector(`.task-item[data-task-id="${taskId}"]`)
-  const isNonNegotiable = taskElement && taskElement.querySelector('.task-type-badge.non-negotiable')
+  const transaction = db.transaction(["tasks"], "readwrite")
+  const taskStore = transaction.objectStore("tasks")
 
-  if (taskElement) {
-    launchConfetti(taskElement)
-    if (isNonNegotiable) {
-      // Non-negotiables: celebrate then reset (don't remove)
-      taskElement.classList.add('task-celebrating')
-      taskElement.querySelector('.confirmation-button').checked = true
-      taskElement.addEventListener('animationend', () => {
-        taskElement.classList.remove('task-celebrating')
-        taskElement.querySelector('.confirmation-button').checked = false
-      }, { once: true })
-    } else {
-      // Regular goals: animate out and remove
-      taskElement.classList.add('task-completing')
-      taskElement.addEventListener('animationend', () => {
-        taskElement.remove()
-        const taskList = document.getElementById('ongoing-tasks')
-        if (taskList && taskList.children.length === 0) {
-          taskList.innerHTML = '<div class="empty-state"><span class="material-symbols-outlined">inventory_2</span>No ongoing tasks. Add one below!</div>'
-        }
-      }, { once: true })
-    }
-  }
+  taskStore.get(taskId).onsuccess = (event) => {
+    const task = event.target.result
+    task.status = true
+    const today = getTodayDate()
+    console.log('Setting endDate to:', today)
+    task.endDate = today
 
-  // Delay DB update to let the animation play
-  setTimeout(() => {
-    const transaction = db.transaction(["tasks"], "readwrite")
-    const taskStore = transaction.objectStore("tasks")
-
-    taskStore.get(taskId).onsuccess = (event) => {
-      const task = event.target.result
-      task.status = true
-      const today = getTodayDate()
-      console.log('Setting endDate to:', today)
-      task.endDate = today
-
-      taskStore.put(task).onsuccess = () => {
-        // If task is Non-Negotiable, create next day's task
-        if (task.type === "Non-Negotiable") {
-          // Get current max sortOrder for ongoing tasks
-          const getAllRequest = taskStore.getAll()
-          getAllRequest.onsuccess = () => {
-            const allTasks = getAllRequest.result
-            const ongoingTasks = allTasks.filter(t => !t.status)
-            const maxSortOrder = ongoingTasks.length > 0 
-              ? Math.max(...ongoingTasks.map(t => t.sortOrder || 0))
-              : -1
-            
-            const nextTask = {
-              title: task.title,
-              type: "Non-Negotiable",
-              status: false,
-              startDate: getTodayDate(),
-              endDate: null,
-              sortOrder: maxSortOrder + 1
-            }
-            taskStore.add(nextTask).onsuccess = (e) => {
-              // Update the DOM element to point to the new task ID
-              if (taskElement) {
-                const newId = e.target.result
-                taskElement.dataset.taskId = newId
-                const checkbox = taskElement.querySelector('.confirmation-button')
-                if (checkbox) checkbox.setAttribute('onchange', `completeTask(${newId})`)
-                const deleteBtn = taskElement.querySelector('.task-delete-btn')
-                if (deleteBtn) deleteBtn.setAttribute('onclick', `deleteTask(${newId})`)
-              }
-              updateDisplayAfterTaskChange()
-            }
+    taskStore.put(task).onsuccess = () => {
+      // If task is Non-Negotiable, create next day's task
+      if (task.type === "Non-Negotiable") {
+        // Get current max sortOrder for ongoing tasks
+        const getAllRequest = taskStore.getAll()
+        getAllRequest.onsuccess = () => {
+          const allTasks = getAllRequest.result
+          const ongoingTasks = allTasks.filter(t => !t.status)
+          const maxSortOrder = ongoingTasks.length > 0 
+            ? Math.max(...ongoingTasks.map(t => t.sortOrder || 0))
+            : -1
+          
+          const nextTask = {
+            title: task.title,
+            type: "Non-Negotiable",
+            status: false,
+            startDate: formatDate(new Date(new Date().getTime() + 86400000)),
+            endDate: null,
+            sortOrder: maxSortOrder + 1
           }
-        } else {
-          updateDisplayAfterTaskChange()
+          taskStore.add(nextTask)
+          updateDisplay()
         }
+      } else {
+        updateDisplay()
       }
     }
-  }, 500)
-}
-
-// Launch confetti particles from a task element
-function launchConfetti(taskElement) {
-  const rect = taskElement.getBoundingClientRect()
-  const centerX = rect.left + rect.width / 2
-  const centerY = rect.top + rect.height / 2
-  const colors = ['#6366f1', '#34d399', '#f59e0b', '#ec4899', '#8b5cf6', '#06b6d4']
-  const particleCount = 30
-
-  for (let i = 0; i < particleCount; i++) {
-    const particle = document.createElement('div')
-    particle.className = 'confetti-particle'
-    const color = colors[Math.floor(Math.random() * colors.length)]
-    const size = Math.random() * 6 + 4
-    const angle = (Math.PI * 2 * i) / particleCount + (Math.random() - 0.5) * 0.5
-    const velocity = Math.random() * 80 + 60
-    const tx = Math.cos(angle) * velocity
-    const ty = Math.sin(angle) * velocity - Math.random() * 40
-    const rotation = Math.random() * 720 - 360
-
-    particle.style.cssText = `
-      left: ${centerX}px;
-      top: ${centerY}px;
-      width: ${size}px;
-      height: ${size}px;
-      background: ${color};
-      border-radius: ${Math.random() > 0.5 ? '50%' : '2px'};
-      --tx: ${tx}px;
-      --ty: ${ty}px;
-      --r: ${rotation}deg;
-    `
-    document.body.appendChild(particle)
-    setTimeout(() => particle.remove(), 800)
   }
 }
 
@@ -647,14 +564,6 @@ function launchConfetti(taskElement) {
 function updateDisplay() {
   updateTodayInfo()
   updateOngoingTasks()
-  updateCompletedTasks()
-  updateStreak()
-  updateLast7DaysOverview()
-  updateChart()
-}
-
-// Lighter update after task completion — skips quote refresh and ongoing tasks rebuild
-function updateDisplayAfterTaskChange() {
   updateCompletedTasks()
   updateStreak()
   updateLast7DaysOverview()
@@ -677,22 +586,21 @@ function updateTodayInfo() {
   request.onsuccess = () => {
     const completedToday = request.result
     todayInfo.innerHTML = `
-            <div class="flex flex-wrap items-baseline gap-2 mb-4">
-                <h2 class="text-xl md:text-2xl font-bold text-zinc-900 dark:text-white">Today is the ${today.getDate()} of ${today.toLocaleString("default", { month: "long" })}</h2>
-                <span class="text-zinc-300 dark:text-zinc-600">&middot;</span>
-                <span class="text-sm font-medium text-zinc-500 dark:text-zinc-400">${completedToday} tasks completed</span>
+            <div class="flex flex-wrap items-baseline gap-2 mb-4 text-sm md:text-base font-bold">
+                <span>Today is the ${today.getDate()} of ${today.toLocaleString("default", { month: "long" })}!</span>
+                <span class="text-gray-400 dark:text-gray-500">•</span>
+                <span>You have completed ${completedToday} tasks today.</span>
             </div>
-            <div class="quote-box">
-                <p class="italic text-sm md:text-base leading-relaxed text-zinc-600 dark:text-zinc-300 pl-4">"${quote.text}"</p>
-                ${quote.author ? `<p class="text-right text-xs text-zinc-400 dark:text-zinc-500 mt-2">&mdash; ${quote.author}</p>` : ''}
+            <div class="bg-gray-100 dark:bg-gray-700 p-4 rounded-lg">
+                <p class="italic mb-2 text-base md:text-1xl leading-snug">"${quote.text}"</p>
+                <p class="text-right text-xs md:text-sm text-gray-600 dark:text-gray-400">- ${quote.author}</p>
             </div>
         `
   }
 }
 
 // Update the list of ongoing (uncompleted) tasks
-// animate: whether to play stagger entry animations (default true on initial load)
-function updateOngoingTasks(animate = true) {
+function updateOngoingTasks() {
   if (!db) {
     console.error("Database not initialized")
     return
@@ -736,23 +644,25 @@ function updateOngoingTasks(animate = true) {
       })
 
       if (tasks.length === 0) {
-        taskList.innerHTML = '<div class="empty-state"><span class="material-symbols-outlined">inventory_2</span>No ongoing tasks. Add one below!</div>'
+        taskList.innerHTML = '<p class="text-gray-500 dark:text-gray-400">No ongoing tasks</p>'
         return
       }
 
+      const isDarkMode = document.documentElement.classList.contains('dark');
+      const crossIcon = isDarkMode ? './icons/whitecross.svg' : './icons/cross.svg';
+
       tasks.forEach((task, index) => {
         const taskElement = document.createElement("div")
-        taskElement.className = animate ? "task-item stagger-" + Math.min(index + 1, 8) : "task-item"
+        taskElement.className = "flex items-center space-x-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg cursor-move transition-opacity"
         taskElement.draggable = true
         taskElement.dataset.taskId = task.id
-        const badgeClass = task.type === 'Non-Negotiable' ? 'non-negotiable' : 'goal'
         taskElement.innerHTML = `
-                    <span class="material-symbols-outlined drag-handle text-lg">drag_indicator</span>
+                    <span class="material-symbols-outlined text-gray-400 drag-handle">drag_indicator</span>
                     <input type="checkbox" onchange="completeTask(${task.id})" class="confirmation-button">
-                    <span class="flex-grow text-sm font-medium text-zinc-700 dark:text-zinc-200">${task.title}</span>
-                    <span class="task-type-badge ${badgeClass}">${task.type}</span>
-                    <button type="button" onclick="deleteTask(${task.id})" class="task-delete-btn" title="Delete task">
-                        <span class="material-symbols-outlined text-lg">close</span>
+                    <span class="flex-grow">${task.title}</span>
+                    <span class="text-sm text-gray-500 dark:text-gray-400">${task.type}</span>
+                    <button onclick="deleteTask(${task.id})" class="bg-blue-500 hover:bg-blue-600 rounded p-1.5 ml-2" title="Delete task">
+                        <img src="${crossIcon}" class="h-3 w-3 scale-150" alt="Delete">
                     </button>
                 `
         
@@ -770,7 +680,7 @@ function updateOngoingTasks(animate = true) {
 
     request.onerror = (event) => {
       console.error("Error fetching tasks:", event.target.error)
-      taskList.innerHTML = '<div class="empty-state"><span class="material-symbols-outlined">error</span>Error loading tasks</div>'
+      taskList.innerHTML = '<p class="text-red-500">Error loading tasks</p>'
     }
   } catch (error) {
     console.error("Error in updateOngoingTasks:", error)
@@ -793,12 +703,7 @@ function updateCompletedTasks() {
   request.onsuccess = () => {
     let tasks = request.result
       .filter((task) => task.status === true) // Filter completed tasks
-      .sort((a, b) => {
-        // Sort by endDate descending, then by id descending (most recently completed first)
-        const dateDiff = new Date(b.endDate) - new Date(a.endDate)
-        if (dateDiff !== 0) return dateDiff
-        return b.id - a.id
-      })
+      .sort((a, b) => new Date(b.endDate) - new Date(a.endDate))
     
     // Only show last 5 on dashboard, show all on My Tasks screen
     if (currentView !== "tasks") {
@@ -806,25 +711,22 @@ function updateCompletedTasks() {
     }
 
     if (tasks.length === 0) {
-      completedList.innerHTML = '<div class="empty-state"><span class="material-symbols-outlined">check_circle</span>No completed tasks yet</div>'
+      completedList.innerHTML = '<p class="text-gray-500 dark:text-gray-400">No completed tasks</p>'
       return
     }
 
     // Update heading based on view
     const heading = document.getElementById('completed-tasks-heading')
     if (heading) {
-      heading.textContent = currentView === "tasks" ? "All Completed Tasks" : "Recent Completions"
+      heading.textContent = currentView === "tasks" ? "All Completed Tasks" : "Last 5 Completed Tasks"
     }
 
-    tasks.forEach((task, index) => {
+    tasks.forEach((task) => {
       const taskElement = document.createElement("div")
-      taskElement.className = "completed-item stagger-" + Math.min(index + 1, 8)
+      taskElement.className = "flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg"
       taskElement.innerHTML = `
-                <div class="flex items-center gap-2">
-                    <span class="material-symbols-outlined text-emerald-400 text-base">check_circle</span>
-                    <span class="text-sm font-medium text-zinc-600 dark:text-zinc-300">${task.title}</span>
-                </div>
-                <span class="text-xs font-medium text-zinc-400 dark:text-zinc-500">${task.endDate}</span>
+                <span>${task.title}</span>
+                <span class="text-sm text-gray-500 dark:text-gray-400">${task.endDate}</span>
             `
       completedList.appendChild(taskElement)
     })
@@ -832,7 +734,7 @@ function updateCompletedTasks() {
 
   request.onerror = (event) => {
     console.error("Error fetching completed tasks:", event.target.error)
-    completedList.innerHTML = '<div class="empty-state"><span class="material-symbols-outlined">error</span>Error loading completed tasks</div>'
+    completedList.innerHTML = '<p class="text-red-500">Error loading completed tasks</p>'
   }
 }
 
@@ -908,10 +810,6 @@ function updateChart() {
     }, [])
 
     // Create new chart and store the instance
-    const isDark = document.documentElement.classList.contains('dark')
-    const gridColor = isDark ? 'rgba(63, 63, 70, 0.3)' : 'rgba(228, 228, 231, 0.6)'
-    const textColor = isDark ? '#a1a1aa' : '#71717a'
-
     currentChart = new Chart(ctx, {
       type: "line",
       data: {
@@ -920,69 +818,23 @@ function updateChart() {
           {
             label: "Expected",
             data: expected,
-            borderColor: "#a5b4fc",
-            backgroundColor: "rgba(165, 180, 252, 0.08)",
-            fill: true,
-            borderWidth: 2,
-            tension: 0.4,
-            pointRadius: 0,
-            pointHoverRadius: 4,
-            pointHoverBackgroundColor: "#a5b4fc",
+            borderColor: "#3498db",
+            fill: false,
           },
           {
             label: "Actual",
             data: actual,
-            borderColor: "#34d399",
-            backgroundColor: "rgba(52, 211, 153, 0.08)",
-            fill: true,
-            borderWidth: 2.5,
-            tension: 0.4,
-            pointRadius: 0,
-            pointHoverRadius: 5,
-            pointHoverBackgroundColor: "#34d399",
+            borderColor: "#2ecc71",
+            fill: false,
           },
         ],
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        interaction: {
-          intersect: false,
-          mode: 'index',
-        },
-        plugins: {
-          legend: {
-            labels: {
-              color: textColor,
-              font: { size: 11, family: 'Inter' },
-              usePointStyle: true,
-              pointStyle: 'circle',
-              padding: 16,
-            },
-          },
-          tooltip: {
-            backgroundColor: isDark ? '#27272a' : '#ffffff',
-            titleColor: isDark ? '#e4e4e7' : '#18181b',
-            bodyColor: isDark ? '#a1a1aa' : '#71717a',
-            borderColor: isDark ? '#3f3f46' : '#e4e4e7',
-            borderWidth: 1,
-            padding: 10,
-            cornerRadius: 8,
-            titleFont: { size: 12, family: 'Inter', weight: '600' },
-            bodyFont: { size: 11, family: 'Inter' },
-          },
-        },
         scales: {
           y: {
             beginAtZero: true,
-            grid: { color: gridColor, drawBorder: false },
-            ticks: { color: textColor, font: { size: 10, family: 'Inter' } },
-            border: { display: false },
-          },
-          x: {
-            grid: { display: false },
-            ticks: { color: textColor, font: { size: 9, family: 'Inter' }, maxRotation: 0, maxTicksLimit: 8 },
-            border: { display: false },
           },
         },
       },
@@ -1022,17 +874,11 @@ function updateLast7DaysOverview() {
     console.log('7 day overview results:', results) // Debug log
     const overviewElement = document.getElementById("seven-day-overview")
     
-    overviewElement.innerHTML = results.map((day, i) => {
-      const countClass = day.count > 0 ? 'positive' : 'zero'
-      const parts = day.date.split(', ')
-      const shortDate = parts[0] || day.date
-      return `
-        <div class="day-cell stagger-${i + 1}">
-          <span class="day-label">${shortDate}</span>
-          <span class="day-count ${countClass}">${day.count}</span>
-        </div>
-      `
-    }).join('')
+    // Create two rows: one for dates, one for counts
+    const datesRow = results.map(day => `<div class="text-center text-sm mb-1">${day.date}</div>`).join("")
+    const countsRow = results.map(day => `<div class="text-center text-lg font-semibold ${day.count > 0 ? "text-green-500" : "text-red-500"}">${day.count}</div>`).join("")
+    
+    overviewElement.innerHTML = datesRow + countsRow
   })
 }
 
@@ -1116,12 +962,12 @@ function handleDragOver(e) {
 
 function handleDragEnter(e) {
   if (this !== draggedElement) {
-    this.classList.add('drag-over')
+    this.classList.add('border-2', 'border-blue-500', 'border-dashed')
   }
 }
 
 function handleDragLeave(e) {
-  this.classList.remove('drag-over')
+  this.classList.remove('border-2', 'border-blue-500', 'border-dashed')
 }
 
 function handleDrop(e) {
@@ -1129,7 +975,7 @@ function handleDrop(e) {
     e.stopPropagation()
   }
   
-  this.classList.remove('drag-over')
+  this.classList.remove('border-2', 'border-blue-500', 'border-dashed')
   
   if (draggedElement !== this) {
     // Get all task elements
@@ -1161,7 +1007,7 @@ function handleDragEnd(e) {
   const taskList = document.getElementById("ongoing-tasks")
   const allTasks = Array.from(taskList.children)
   allTasks.forEach(task => {
-    task.classList.remove('drag-over')
+    task.classList.remove('border-2', 'border-blue-500', 'border-dashed')
   })
 }
 
@@ -1227,11 +1073,8 @@ function startTimer(taskName) {
   timerStartTime = Date.now();
 
   const controlBtn = document.getElementById("timer-control-btn");
-  controlBtn.innerHTML = '<span class="material-symbols-outlined text-lg">stop</span> Stop';
-  controlBtn.className = "btn-danger h-10 px-6 flex items-center gap-2";
-
-  // Add running animation to timer display
-  document.getElementById("timer-display").classList.add("timer-running");
+  controlBtn.textContent = "Stop";
+  controlBtn.className = "bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-6 rounded-md transition duration-300";
 
   const taskInput = document.getElementById("timer-task-input");
   taskInput.disabled = true;
@@ -1267,11 +1110,8 @@ function stopTimer() {
   }
 
   const controlBtn = document.getElementById("timer-control-btn");
-  controlBtn.innerHTML = '<span class="material-symbols-outlined text-lg">play_arrow</span> Start';
-  controlBtn.className = "btn-success h-10 px-6 flex items-center gap-2";
-
-  // Remove running animation from timer display
-  document.getElementById("timer-display").classList.remove("timer-running");
+  controlBtn.textContent = "Start";
+  controlBtn.className = "bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-6 rounded-md transition duration-300";
 
   const taskInput = document.getElementById("timer-task-input");
   taskInput.disabled = false;
@@ -1385,21 +1225,26 @@ function updateTaskCounters() {
 
     // Display counters
     if (Object.keys(taskTotals).length === 0) {
-      countersContainer.innerHTML = '<div class="empty-state"><span class="material-symbols-outlined">hourglass_empty</span>No tracked tasks yet</div>';
+      countersContainer.innerHTML = '<p class="text-gray-500 dark:text-gray-400">No tracked tasks yet</p>';
       return;
     }
 
+    const isDarkMode = document.documentElement.classList.contains('dark');
+    const crossIcon = isDarkMode ? './icons/whitecross.svg' : './icons/cross.svg';
+
     countersContainer.innerHTML = Object.entries(taskTotals)
-      .sort((a, b) => b[1] - a[1])
-      .map(([taskName, totalSeconds], i) => `
-        <div class="time-entry-item stagger-${Math.min(i + 1, 8)}">
-          <span class="flex-grow text-sm font-medium text-zinc-700 dark:text-zinc-200">${taskName}</span>
-          <span class="text-xs font-medium text-zinc-400 dark:text-zinc-500 tabular-nums">${formatTime(totalSeconds)}</span>
-          <button onclick="startTimerWithTask('${taskName.replace(/'/g, "\\'")}')" class="task-delete-btn" style="color: #10b981" title="Start timer for this task">
-            <span class="material-symbols-outlined text-lg">play_circle</span>
+      .sort((a, b) => b[1] - a[1]) // Sort by time descending
+      .map(([taskName, totalSeconds]) => `
+        <div class="flex items-center space-x-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+          <span class="flex-grow">${taskName}</span>
+          <span class="text-sm text-gray-500 dark:text-gray-400">${formatTime(totalSeconds)}</span>
+          <button onclick="startTimerWithTask('${taskName.replace(/'/g, "\\'")}')" class="bg-green-500 hover:bg-green-600 text-white rounded p-1.5 ml-2" title="Start timer for this task">
+            <svg class="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"/>
+            </svg>
           </button>
-          <button onclick="deleteTaskTimeTracking('${taskName.replace(/'/g, "\\'")}')" class="task-delete-btn" title="Delete task time tracking">
-            <span class="material-symbols-outlined text-lg">close</span>
+          <button onclick="deleteTaskTimeTracking('${taskName.replace(/'/g, "\\'")}')" class="bg-blue-500 hover:bg-blue-600 rounded p-1.5 ml-2" title="Delete task time tracking">
+            <img src="${crossIcon}" class="h-3 w-3 scale-150" alt="Delete">
           </button>
         </div>
       `).join("");
@@ -1407,7 +1252,7 @@ function updateTaskCounters() {
 
   request.onerror = (event) => {
     console.error("Error fetching time tracking data:", event.target.error);
-    countersContainer.innerHTML = '<div class="empty-state"><span class="material-symbols-outlined">error</span>Error loading counters</div>';
+    countersContainer.innerHTML = '<p class="text-red-500">Error loading task counters</p>';
   };
 }
 
@@ -1416,7 +1261,7 @@ function updateTaskHistory() {
   const historyContainer = document.getElementById("task-history");
 
   if (!db) {
-    historyContainer.innerHTML = '<div class="empty-state"><span class="material-symbols-outlined">history</span>No recent sessions</div>';
+    historyContainer.innerHTML = '<p class="text-gray-500 dark:text-gray-400">No recent sessions</p>';
     return;
   }
 
@@ -1436,17 +1281,17 @@ function updateTaskHistory() {
 
     // Display history
     if (recentEntries.length === 0) {
-      historyContainer.innerHTML = '<div class="empty-state"><span class="material-symbols-outlined">history</span>No recent sessions</div>';
+      historyContainer.innerHTML = '<p class="text-gray-500 dark:text-gray-400">No recent sessions</p>';
       return;
     }
 
-    historyContainer.innerHTML = recentEntries.map((entry, i) => {
+    historyContainer.innerHTML = recentEntries.map(entry => {
       const date = new Date(entry.timestamp);
       const dateStr = date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
       return `
-        <div class="completed-item stagger-${Math.min(i + 1, 8)}">
-          <span class="text-sm font-medium text-zinc-700 dark:text-zinc-200">${entry.taskName}</span>
-          <span class="text-xs font-medium text-zinc-400 dark:text-zinc-500 tabular-nums">${formatTime(entry.seconds)} &middot; ${dateStr}</span>
+        <div class="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+          <span>${entry.taskName}</span>
+          <span class="text-sm text-gray-500 dark:text-gray-400">${formatTime(entry.seconds)} • ${dateStr}</span>
         </div>
       `;
     }).join("");
@@ -1454,7 +1299,7 @@ function updateTaskHistory() {
 
   request.onerror = (event) => {
     console.error("Error fetching task history:", event.target.error);
-    historyContainer.innerHTML = '<div class="empty-state"><span class="material-symbols-outlined">error</span>Error loading history</div>';
+    historyContainer.innerHTML = '<p class="text-red-500">Error loading task history</p>';
   };
 }
 
@@ -1556,58 +1401,42 @@ function updateTimePieChart() {
 
     // Generate colors for the pie chart
     const colors = [
-      '#818cf8', '#34d399', '#fb923c', '#f87171', '#a78bfa',
-      '#38bdf8', '#fbbf24', '#f472b6', '#4ade80', '#e879f9'
+      '#3498db', '#2ecc71', '#e74c3c', '#f39c12', '#9b59b6',
+      '#1abc9c', '#34495e', '#e67e22', '#95a5a6', '#16a085'
     ];
-
-    const isDark = document.documentElement.classList.contains('dark')
-    const textColor = isDark ? '#a1a1aa' : '#71717a'
 
     // Create new pie chart
     currentPieChart = new Chart(ctx, {
-      type: "doughnut",
+      type: "pie",
       data: {
         labels: labels,
         datasets: [{
           data: data,
           backgroundColor: colors.slice(0, labels.length),
-          borderColor: isDark ? '#18181b' : '#ffffff',
-          borderWidth: 3,
-          borderRadius: 4,
-          hoverOffset: 8,
+          borderColor: document.documentElement.classList.contains('dark') ? '#1f2937' : '#ffffff',
+          borderWidth: 2
         }]
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        cutout: '55%',
         plugins: {
           legend: {
             position: 'right',
             labels: {
-              color: textColor,
-              font: { size: 11, family: 'Inter' },
-              usePointStyle: true,
-              pointStyle: 'circle',
-              padding: 14,
+              color: document.documentElement.classList.contains('dark') ? '#e5e7eb' : '#374151',
+              font: {
+                size: 12
+              }
             }
           },
           tooltip: {
-            backgroundColor: isDark ? '#27272a' : '#ffffff',
-            titleColor: isDark ? '#e4e4e7' : '#18181b',
-            bodyColor: isDark ? '#a1a1aa' : '#71717a',
-            borderColor: isDark ? '#3f3f46' : '#e4e4e7',
-            borderWidth: 1,
-            padding: 10,
-            cornerRadius: 8,
-            titleFont: { size: 12, family: 'Inter', weight: '600' },
-            bodyFont: { size: 11, family: 'Inter' },
             callbacks: {
               label: function(context) {
                 const label = context.label || '';
                 const value = context.parsed || 0;
                 const formattedTime = formatTime(value);
-                return ` ${label}: ${formattedTime}`;
+                return `${label}: ${formattedTime}`;
               }
             }
           }
@@ -1753,10 +1582,14 @@ function showNotification(message, type = "info") {
   // Create notification element
   const notification = document.createElement('div');
   notification.id = 'export-import-notification';
-  notification.className = `notification-toast ${type}`;
+  notification.className = `fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg ${
+    type === 'success' ? 'bg-green-100 text-green-800 border border-green-200' :
+    type === 'error' ? 'bg-red-100 text-red-800 border border-red-200' :
+    'bg-blue-100 text-blue-800 border border-blue-200'
+  }`;
   notification.innerHTML = `
-    <div class="flex items-center gap-2">
-      <span class="material-symbols-outlined text-lg flex-shrink-0">
+    <div class="flex items-center">
+      <span class="material-symbols-outlined mr-2">
         ${type === 'success' ? 'check_circle' : type === 'error' ? 'error' : 'info'}
       </span>
       <span>${message}</span>
@@ -1765,15 +1598,10 @@ function showNotification(message, type = "info") {
 
   document.body.appendChild(notification);
 
-  // Auto-remove after 5 seconds with exit animation
+  // Auto-remove after 5 seconds
   setTimeout(() => {
     if (notification.parentNode) {
-      notification.classList.add('exiting');
-      setTimeout(() => {
-        if (notification.parentNode) {
-          notification.remove();
-        }
-      }, 300);
+      notification.remove();
     }
   }, 5000);
 }
@@ -2340,10 +2168,10 @@ function showApiKeyStatus(message, type = 'info') {
   const statusElement = document.getElementById('api-key-status');
   if (!statusElement) return;
   
-  statusElement.className = `p-3 rounded-xl text-sm ${
-    type === 'success' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
-    type === 'error' ? 'bg-red-50 text-red-700 border border-red-200' :
-    'bg-indigo-50 text-indigo-700 border border-indigo-200'
+  statusElement.className = `p-3 rounded-md ${
+    type === 'success' ? 'bg-green-100 text-green-800 border border-green-200' :
+    type === 'error' ? 'bg-red-100 text-red-800 border border-red-200' :
+    'bg-blue-100 text-blue-800 border border-blue-200'
   }`;
   
   statusElement.innerHTML = `
