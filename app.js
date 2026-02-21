@@ -393,13 +393,8 @@ function showHelp() {
 function setCompletedTasksCollapsed(collapsed, persist = true) {
   isCompletedTasksCollapsed = collapsed
 
-  const panel = document.getElementById("completed-tasks-panel")
   const toggleButton = document.getElementById("toggle-completed-tasks")
   const chevron = document.getElementById("completed-tasks-chevron")
-
-  if (panel) {
-    panel.classList.toggle("hidden", collapsed)
-  }
 
   if (toggleButton) {
     toggleButton.setAttribute("aria-expanded", (!collapsed).toString())
@@ -416,6 +411,8 @@ function setCompletedTasksCollapsed(collapsed, persist = true) {
   if (persist) {
     localStorage.setItem("completedTasksCollapsed", collapsed.toString())
   }
+
+  updateCompletedTasks()
 }
 
 function toggleCompletedTasksCollapse() {
@@ -605,12 +602,26 @@ function completeTask(taskId) {
     const transaction = db.transaction(["tasks"], "readwrite")
     const taskStore = transaction.objectStore("tasks")
 
+    transaction.oncomplete = () => {
+      updateDisplayAfterTaskChange()
+    }
+
+    transaction.onerror = (event) => {
+      console.error("Error completing task:", event.target.error)
+    }
+
     taskStore.get(taskId).onsuccess = (event) => {
       const task = event.target.result
+      if (!task) {
+        console.error("Task not found for completion, ID:", taskId)
+        return
+      }
+
       task.status = true
       const today = getTodayDate()
       console.log('Setting endDate to:', today)
       task.endDate = today
+      task.completedAt = Date.now()
 
       taskStore.put(task).onsuccess = () => {
         // If task is Non-Negotiable, create next day's task
@@ -642,11 +653,8 @@ function completeTask(taskId) {
                 const deleteBtn = taskElement.querySelector('.task-delete-btn')
                 if (deleteBtn) deleteBtn.setAttribute('onclick', `deleteTask(${newId})`)
               }
-              updateDisplayAfterTaskChange()
             }
           }
-        } else {
-          updateDisplayAfterTaskChange()
         }
       }
     }
@@ -825,7 +833,7 @@ function updateOngoingTasks(animate = true) {
 // Update the list of recently completed tasks
 function updateCompletedTasks() {
   const completedList = document.getElementById("completed-tasks")
-  if (!completedList) return
+  if (!completedList || !db) return
   
   completedList.innerHTML = ""
 
@@ -839,14 +847,21 @@ function updateCompletedTasks() {
     let tasks = request.result
       .filter((task) => task.status === true) // Filter completed tasks
       .sort((a, b) => {
-        // Sort by endDate descending, then by id descending (most recently completed first)
+        // Sort by precise completion time first, then fallback to endDate and id
+        const completedAtDiff = (b.completedAt || 0) - (a.completedAt || 0)
+        if (completedAtDiff !== 0) return completedAtDiff
+
         const dateDiff = new Date(b.endDate) - new Date(a.endDate)
         if (dateDiff !== 0) return dateDiff
         return b.id - a.id
       })
     
-    // Only show last 5 on dashboard, show all on My Tasks screen
-    if (currentView !== "tasks") {
+    // Collapsed mode: show only the latest completed task
+    if (isCompletedTasksCollapsed) {
+      tasks = tasks.slice(0, 1)
+    }
+    // Expanded mode: only show last 5 on dashboard, show all on My Tasks screen
+    else if (currentView !== "tasks") {
       tasks = tasks.slice(0, 5)
     }
 
@@ -855,10 +870,14 @@ function updateCompletedTasks() {
       return
     }
 
-    // Update heading based on view
+    // Update heading based on collapsed state and view
     const heading = document.getElementById('completed-tasks-heading')
     if (heading) {
-      heading.textContent = currentView === "tasks" ? "All Completed Tasks" : "Recent Completions"
+      if (isCompletedTasksCollapsed) {
+        heading.textContent = "Latest Completion"
+      } else {
+        heading.textContent = currentView === "tasks" ? "All Completed Tasks" : "Recent Completions"
+      }
     }
 
     tasks.forEach((task, index) => {
