@@ -189,9 +189,21 @@
                             <div class="card">
                                 <div class="flex items-center justify-between mb-5">
                                     <h2 id="completed-tasks-heading" class="text-lg font-semibold text-zinc-900 dark:text-white">Recent Completions</h2>
-                                    <span class="material-symbols-outlined text-emerald-500 text-xl">task_alt</span>
+                                    <button
+                                        id="toggle-completed-tasks"
+                                        type="button"
+                                        class="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors"
+                                        aria-controls="completed-tasks-panel"
+                                        aria-expanded="true"
+                                        title="Collapse recent completions"
+                                    >
+                                        <span class="material-symbols-outlined text-emerald-500 text-xl">task_alt</span>
+                                        <span id="completed-tasks-chevron" class="material-symbols-outlined text-base">expand_less</span>
+                                    </button>
                                 </div>
-                                <div id="completed-tasks" class="space-y-2 max-h-[260px] overflow-y-auto custom-scrollbar"></div>
+                                <div id="completed-tasks-panel">
+                                    <div id="completed-tasks" class="space-y-2 max-h-[260px] overflow-y-auto custom-scrollbar"></div>
+                                </div>
                             </div>
                         </div>
 

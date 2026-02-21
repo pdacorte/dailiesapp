@@ -18,6 +18,7 @@ let currentTaskName = ""
 
 // Current view state
 let currentView = "dashboard"
+let isCompletedTasksCollapsed = false
 
 // Update user info display from Google Drive authentication
 function updateUserInfoDisplay(userInfo) {
@@ -389,6 +390,48 @@ function showHelp() {
   setActiveView('help')
 }
 
+function setCompletedTasksCollapsed(collapsed, persist = true) {
+  isCompletedTasksCollapsed = collapsed
+
+  const panel = document.getElementById("completed-tasks-panel")
+  const toggleButton = document.getElementById("toggle-completed-tasks")
+  const chevron = document.getElementById("completed-tasks-chevron")
+
+  if (panel) {
+    panel.classList.toggle("hidden", collapsed)
+  }
+
+  if (toggleButton) {
+    toggleButton.setAttribute("aria-expanded", (!collapsed).toString())
+    toggleButton.setAttribute(
+      "title",
+      collapsed ? "Expand recent completions" : "Collapse recent completions",
+    )
+  }
+
+  if (chevron) {
+    chevron.textContent = collapsed ? "expand_more" : "expand_less"
+  }
+
+  if (persist) {
+    localStorage.setItem("completedTasksCollapsed", collapsed.toString())
+  }
+}
+
+function toggleCompletedTasksCollapse() {
+  setCompletedTasksCollapsed(!isCompletedTasksCollapsed)
+}
+
+function initializeCompletedTasksCollapse() {
+  const toggleButton = document.getElementById("toggle-completed-tasks")
+  if (!toggleButton) return
+
+  const savedState = localStorage.getItem("completedTasksCollapsed") === "true"
+  setCompletedTasksCollapsed(savedState, false)
+
+  toggleButton.addEventListener("click", toggleCompletedTasksCollapse)
+}
+
 // Set up event listeners for form submission, theme toggle, and expected tasks
 function focusOnOngoingTasks() {
   // Scroll to the ongoing tasks section
@@ -429,6 +472,8 @@ function setupEventListeners() {
       setActiveView(view);
     });
   });
+
+  initializeCompletedTasksCollapse()
 
   // Initialize default view as dashboard
   setActiveView("dashboard");

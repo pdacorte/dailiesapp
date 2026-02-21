@@ -1,0 +1,4 @@
+What to Learn ASAP:
+APIs: How to send requests, how to read JSON response, how to authenticate!
+GIT: Branches, Pull Requests & Syncing, Rebase, Remote URL Changes, Visualizing Tree
+Databases: Postgres, Supabase, JSON / CSV Exports / API Integration
