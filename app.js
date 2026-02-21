@@ -19,6 +19,14 @@ let currentTaskName = ""
 // Current view state
 let currentView = "dashboard"
 let isCompletedTasksCollapsed = false
+let dailyAlertInterval = null
+
+const DAILY_ALERT_DEFAULTS = {
+  enabled: false,
+  channel: "notification",
+  triggerTime: "20:00",
+  email: "",
+}
 
 // Update user info display from Google Drive authentication
 function updateUserInfoDisplay(userInfo) {
@@ -250,6 +258,7 @@ function initializeDB() {
     db = event.target.result
     updateDisplay()
     updateTimeTrackerDisplay()
+    startDailyAlertScheduler()
   }
 }
 
@@ -472,8 +481,279 @@ function setupEventListeners() {
 
   initializeCompletedTasksCollapse()
 
+  const saveAlertButton = document.getElementById("save-alert-settings")
+  if (saveAlertButton) {
+    saveAlertButton.addEventListener("click", saveDailyAlertSettings)
+  }
+
+  const alertChannel = document.getElementById("alert-channel")
+  if (alertChannel) {
+    alertChannel.addEventListener("change", updateAlertChannelVisibility)
+  }
+
   // Initialize default view as dashboard
   setActiveView("dashboard");
+}
+
+function getSettingValue(key) {
+  return new Promise((resolve, reject) => {
+    if (!db) {
+      resolve(null)
+      return
+    }
+
+    const transaction = db.transaction(["settings"], "readonly")
+    const settingsStore = transaction.objectStore("settings")
+    const request = settingsStore.get(key)
+
+    request.onsuccess = () => {
+      resolve(request.result ? request.result.value : null)
+    }
+
+    request.onerror = (event) => {
+      reject(event.target.error)
+    }
+  })
+}
+
+function setSettingValue(key, value) {
+  return new Promise((resolve, reject) => {
+    if (!db) {
+      reject(new Error("Database not initialized"))
+      return
+    }
+
+    const transaction = db.transaction(["settings"], "readwrite")
+    const settingsStore = transaction.objectStore("settings")
+    const request = settingsStore.put({
+      key,
+      value,
+      updatedAt: new Date().toISOString(),
+    })
+
+    request.onsuccess = () => resolve()
+    request.onerror = (event) => reject(event.target.error)
+  })
+}
+
+async function getDailyAlertConfig() {
+  try {
+    const savedConfig = await getSettingValue("dailyAlertConfig")
+    if (!savedConfig || typeof savedConfig !== "object") {
+      return { ...DAILY_ALERT_DEFAULTS }
+    }
+
+    return {
+      ...DAILY_ALERT_DEFAULTS,
+      ...savedConfig,
+    }
+  } catch (error) {
+    console.error("Error loading daily alert settings:", error)
+    return { ...DAILY_ALERT_DEFAULTS }
+  }
+}
+
+async function setDailyAlertConfig(config) {
+  await setSettingValue("dailyAlertConfig", config)
+}
+
+async function getDailyAlertLastTriggeredDate() {
+  try {
+    return await getSettingValue("dailyAlertLastTriggeredDate")
+  } catch (error) {
+    console.error("Error loading alert trigger date:", error)
+    return null
+  }
+}
+
+async function setDailyAlertLastTriggeredDate(dateStr) {
+  await setSettingValue("dailyAlertLastTriggeredDate", dateStr)
+}
+
+function updateAlertChannelVisibility() {
+  const alertChannel = document.getElementById("alert-channel")
+  const emailWrap = document.getElementById("alert-email-wrap")
+
+  if (!alertChannel || !emailWrap) return
+
+  emailWrap.classList.toggle("hidden", alertChannel.value !== "email")
+}
+
+async function populateDailyAlertSettingsUI() {
+  const alertEnabled = document.getElementById("alert-enabled")
+  const alertChannel = document.getElementById("alert-channel")
+  const alertTime = document.getElementById("alert-time")
+  const alertEmail = document.getElementById("alert-email")
+
+  if (!alertEnabled || !alertChannel || !alertTime || !alertEmail) return
+
+  const config = await getDailyAlertConfig()
+  alertEnabled.checked = Boolean(config.enabled)
+  alertChannel.value = config.channel || DAILY_ALERT_DEFAULTS.channel
+  alertTime.value = config.triggerTime || DAILY_ALERT_DEFAULTS.triggerTime
+  alertEmail.value = config.email || ""
+
+  updateAlertChannelVisibility()
+}
+
+async function saveDailyAlertSettings() {
+  const alertEnabled = document.getElementById("alert-enabled")
+  const alertChannel = document.getElementById("alert-channel")
+  const alertTime = document.getElementById("alert-time")
+  const alertEmail = document.getElementById("alert-email")
+
+  if (!alertEnabled || !alertChannel || !alertTime || !alertEmail) {
+    showNotification("Alert settings controls are missing.", "error")
+    return
+  }
+
+  const config = {
+    enabled: Boolean(alertEnabled.checked),
+    channel: alertChannel.value,
+    triggerTime: alertTime.value || DAILY_ALERT_DEFAULTS.triggerTime,
+    email: alertEmail.value.trim(),
+  }
+
+  if (config.channel === "email" && !config.email) {
+    showNotification("Please enter an email address for email alerts.", "error")
+    return
+  }
+
+  try {
+    await setDailyAlertConfig(config)
+    showNotification("Alert settings saved.", "success")
+
+    if (config.enabled && config.channel === "notification" && "Notification" in window && Notification.permission === "default") {
+      try {
+        await Notification.requestPermission()
+      } catch (error) {
+        console.error("Notification permission request failed:", error)
+      }
+    }
+
+    await checkAndTriggerDailyAlert()
+  } catch (error) {
+    console.error("Error saving alert settings:", error)
+    showNotification("Failed to save alert settings.", "error")
+  }
+}
+
+function hasReachedDailyAlertTime(triggerTime) {
+  if (!triggerTime || !triggerTime.includes(":")) return false
+
+  const [hourStr, minuteStr] = triggerTime.split(":")
+  const targetHour = parseInt(hourStr, 10)
+  const targetMinute = parseInt(minuteStr, 10)
+
+  if (Number.isNaN(targetHour) || Number.isNaN(targetMinute)) return false
+
+  const now = new Date()
+  const nowMinutes = now.getHours() * 60 + now.getMinutes()
+  const targetMinutes = targetHour * 60 + targetMinute
+
+  return nowMinutes >= targetMinutes
+}
+
+function getCompletedTasksCountForDate(dateStr) {
+  return new Promise((resolve, reject) => {
+    if (!db) {
+      resolve(0)
+      return
+    }
+
+    const transaction = db.transaction(["tasks"], "readonly")
+    const taskStore = transaction.objectStore("tasks")
+    const index = taskStore.index("endDate")
+    const request = index.count(IDBKeyRange.only(dateStr))
+
+    request.onsuccess = () => resolve(request.result || 0)
+    request.onerror = (event) => reject(event.target.error)
+  })
+}
+
+async function triggerBrowserNotification(message) {
+  if (!("Notification" in window)) {
+    showNotification(message, "info")
+    return
+  }
+
+  if (Notification.permission === "granted") {
+    new Notification("Dailies Reminder", { body: message })
+    showNotification("Daily reminder notification sent.", "success")
+    return
+  }
+
+  if (Notification.permission === "default") {
+    try {
+      const permission = await Notification.requestPermission()
+      if (permission === "granted") {
+        new Notification("Dailies Reminder", { body: message })
+        showNotification("Daily reminder notification sent.", "success")
+        return
+      }
+    } catch (error) {
+      console.error("Notification permission request failed:", error)
+    }
+  }
+
+  showNotification(message, "info")
+}
+
+function triggerEmailReminder(email) {
+  const targetEmail = email && email.includes("@") ? email : ""
+  if (!targetEmail) {
+    showNotification("No valid alert email configured.", "error")
+    return
+  }
+
+  const subject = encodeURIComponent("Dailies Reminder: No tasks completed today")
+  const body = encodeURIComponent("You still have 0 completed tasks today. Open Dailies and finish one task.")
+  const mailtoUrl = `mailto:${targetEmail}?subject=${subject}&body=${body}`
+
+  window.location.href = mailtoUrl
+  showNotification(`Email reminder prepared for ${targetEmail}.`, "info")
+}
+
+async function triggerDailyAlert(config) {
+  const message = "No tasks completed yet today."
+
+  if (config.channel === "email") {
+    triggerEmailReminder(config.email)
+  } else {
+    triggerBrowserNotification(message)
+  }
+}
+
+async function checkAndTriggerDailyAlert() {
+  if (!db) return
+
+  try {
+    const config = await getDailyAlertConfig()
+    if (!config.enabled) return
+
+    const today = getTodayDate()
+    const lastTriggeredDate = await getDailyAlertLastTriggeredDate()
+    if (lastTriggeredDate === today) return
+
+    if (!hasReachedDailyAlertTime(config.triggerTime)) return
+
+    const completedCount = await getCompletedTasksCountForDate(today)
+    if (completedCount > 0) return
+
+    await triggerDailyAlert(config)
+    await setDailyAlertLastTriggeredDate(today)
+  } catch (error) {
+    console.error("Error checking daily alert:", error)
+  }
+}
+
+function startDailyAlertScheduler() {
+  if (dailyAlertInterval) {
+    clearInterval(dailyAlertInterval)
+  }
+
+  checkAndTriggerDailyAlert()
+  dailyAlertInterval = setInterval(checkAndTriggerDailyAlert, 30 * 1000)
 }
 
 // Format a date object to YYYY-MM-DD string
@@ -2440,6 +2720,8 @@ async function loadSettings() {
     apiKeyInput.placeholder = 'Enter your Google Drive API Client ID';
     apiKeyInput.value = '';
   }
+
+  await populateDailyAlertSettingsUI()
 }
 
 

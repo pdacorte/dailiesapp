@@ -26,6 +26,7 @@ To enable Google Drive sync in DailiesApp, you need to set up Google API credent
 ## Step 4: Configure Authorized Origins and Redirects
 
 ### For Local Development:
+
 ```
 Authorized JavaScript origins:
 - http://localhost
@@ -37,6 +38,7 @@ Authorized redirect URIs:
 ```
 
 ### For Production (if deployed):
+
 ```
 Authorized JavaScript origins:
 - https://yourdomain.com

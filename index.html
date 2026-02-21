@@ -359,6 +359,45 @@
                                                 <option value="Non-Negotiable">Non-Negotiable</option>
                                             </select>
                                         </div>
+
+                                        <div class="pt-5 border-t border-zinc-100 dark:border-zinc-800 space-y-4">
+                                            <div class="flex items-center justify-between">
+                                                <div>
+                                                    <h4 class="text-sm font-medium text-zinc-700 dark:text-zinc-300">Daily No-Completion Alert</h4>
+                                                    <p class="text-xs text-zinc-400 mt-0.5">Trigger only if no tasks were completed today</p>
+                                                </div>
+                                                <label class="inline-flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
+                                                    <input id="alert-enabled" type="checkbox" class="h-4 w-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500/40">
+                                                    Enabled
+                                                </label>
+                                            </div>
+
+                                            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                                <div>
+                                                    <label for="alert-channel" class="label-text">Alert Type</label>
+                                                    <select id="alert-channel" class="input-field w-full mt-1 text-sm">
+                                                        <option value="notification">Notification</option>
+                                                        <option value="email">Email</option>
+                                                    </select>
+                                                </div>
+
+                                                <div>
+                                                    <label for="alert-time" class="label-text">Trigger Time</label>
+                                                    <input id="alert-time" type="time" class="input-field w-full mt-1 text-sm" value="20:00">
+                                                </div>
+
+                                                <div id="alert-email-wrap" class="hidden">
+                                                    <label for="alert-email" class="label-text">Email Address</label>
+                                                    <input id="alert-email" type="email" placeholder="you@example.com" class="input-field w-full mt-1 text-sm">
+                                                </div>
+                                            </div>
+
+                                            <p class="text-xs text-zinc-400">Email alerts open your default mail app with a pre-filled reminder.</p>
+
+                                            <div class="flex">
+                                                <button id="save-alert-settings" type="button" class="btn-primary h-9 px-4 text-sm">Save Alerts</button>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
