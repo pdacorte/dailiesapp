@@ -612,22 +612,6 @@ video {
   inset: 0px;
 }
 
-.-bottom-6 {
-  bottom: -1.5rem;
-}
-
-.-left-6 {
-  left: -1.5rem;
-}
-
-.-right-8 {
-  right: -2rem;
-}
-
-.-top-8 {
-  top: -2rem;
-}
-
 .bottom-6 {
   bottom: 1.5rem;
 }
@@ -638,10 +622,6 @@ video {
 
 .top-0 {
   top: 0px;
-}
-
-.z-10 {
-  z-index: 10;
 }
 
 .z-30 {
@@ -655,10 +635,6 @@ video {
 .mx-auto {
   margin-left: auto;
   margin-right: auto;
-}
-
-.mb-1 {
-  margin-bottom: 0.25rem;
 }
 
 .mb-2 {
@@ -758,10 +734,6 @@ video {
   height: 3rem;
 }
 
-.h-14 {
-  height: 3.5rem;
-}
-
 .h-2 {
   height: 0.5rem;
 }
@@ -770,12 +742,8 @@ video {
   height: 5rem;
 }
 
-.h-24 {
-  height: 6rem;
-}
-
-.h-32 {
-  height: 8rem;
+.h-4 {
+  height: 1rem;
 }
 
 .h-5 {
@@ -854,12 +822,8 @@ video {
   width: 5rem;
 }
 
-.w-24 {
-  width: 6rem;
-}
-
-.w-32 {
-  width: 8rem;
+.w-4 {
+  width: 1rem;
 }
 
 .w-4\/5 {
@@ -964,10 +928,6 @@ video {
   align-items: center;
 }
 
-.items-baseline {
-  align-items: baseline;
-}
-
 .justify-center {
   justify-content: center;
 }
@@ -1064,6 +1024,10 @@ video {
   white-space: nowrap;
 }
 
+.rounded {
+  border-radius: 0.25rem;
+}
+
 .rounded-2xl {
   border-radius: 1rem;
 }
@@ -1148,6 +1112,11 @@ video {
   border-color: rgb(228 228 231 / 0.6);
 }
 
+.border-zinc-300 {
+  --tw-border-opacity: 1;
+  border-color: rgb(212 212 216 / var(--tw-border-opacity, 1));
+}
+
 .bg-amber-50 {
   --tw-bg-opacity: 1;
   background-color: rgb(255 251 235 / var(--tw-bg-opacity, 1));
@@ -1220,14 +1189,6 @@ video {
 .bg-white {
   --tw-bg-opacity: 1;
   background-color: rgb(255 255 255 / var(--tw-bg-opacity, 1));
-}
-
-.bg-white\/10 {
-  background-color: rgb(255 255 255 / 0.1);
-}
-
-.bg-white\/20 {
-  background-color: rgb(255 255 255 / 0.2);
 }
 
 .bg-white\/80 {
@@ -1462,10 +1423,6 @@ video {
   line-height: 1.25;
 }
 
-.tracking-tight {
-  letter-spacing: -0.025em;
-}
-
 .tracking-wider {
   letter-spacing: 0.05em;
 }
@@ -1585,10 +1542,6 @@ video {
   color: rgb(255 255 255 / var(--tw-text-opacity, 1));
 }
 
-.text-white\/80 {
-  color: rgb(255 255 255 / 0.8);
-}
-
 .text-yellow-500 {
   --tw-text-opacity: 1;
   color: rgb(234 179 8 / var(--tw-text-opacity, 1));
@@ -1676,24 +1629,8 @@ video {
   --tw-ring-color: rgb(255 255 255 / var(--tw-ring-opacity, 1));
 }
 
-.blur-lg {
-  --tw-blur: blur(16px);
-  filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
-}
-
-.blur-xl {
-  --tw-blur: blur(24px);
-  filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
-}
-
 .filter {
   filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
-}
-
-.backdrop-blur-sm {
-  --tw-backdrop-blur: blur(4px);
-  -webkit-backdrop-filter: var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia);
-  backdrop-filter: var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia);
 }
 
 .backdrop-blur-xl {
@@ -2185,6 +2122,11 @@ body {
   color: rgb(248 113 113 / var(--tw-text-opacity, 1));
 }
 
+.dark\:hover\:text-zinc-200:hover:is(.dark *) {
+  --tw-text-opacity: 1;
+  color: rgb(228 228 231 / var(--tw-text-opacity, 1));
+}
+
 .dark\:hover\:text-zinc-300:hover:is(.dark *) {
   --tw-text-opacity: 1;
   color: rgb(212 212 216 / var(--tw-text-opacity, 1));
@@ -2193,6 +2135,10 @@ body {
 @media (min-width: 768px) {
   .md\:grid-cols-2 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .md\:grid-cols-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .md\:text-2xl {

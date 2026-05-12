@@ -20,6 +20,7 @@ let currentTaskName = ""
 let currentView = "dashboard"
 let isCompletedTasksCollapsed = false
 let dailyAlertInterval = null
+let dashboardHeightSyncFrame = null
 
 const DAILY_ALERT_DEFAULTS = {
   enabled: false,
@@ -393,6 +394,7 @@ function setActiveView(view) {
   
   // Update completed tasks display based on view
   updateCompletedTasks()
+  syncDashboardTaskCardHeight()
 }
 
 function showHelp() {
@@ -490,6 +492,8 @@ function setupEventListeners() {
   if (alertChannel) {
     alertChannel.addEventListener("change", updateAlertChannelVisibility)
   }
+
+  window.addEventListener("resize", syncDashboardTaskCardHeight)
 
   // Initialize default view as dashboard
   setActiveView("dashboard");
@@ -779,6 +783,33 @@ function getRandomQuote() {
   return motivationalQuotes[randomIndex]
 }
 
+function hasParentTask(task) {
+  return task && task.parentId !== undefined && task.parentId !== null
+}
+
+function escapeHTML(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
+}
+
+function getSubtasksForParent(tasks, parentId) {
+  return tasks
+    .filter((task) => task.parentId === parentId)
+    .sort((a, b) => {
+      const orderA = a.subtaskOrder !== undefined ? a.subtaskOrder : a.id || 0
+      const orderB = b.subtaskOrder !== undefined ? b.subtaskOrder : b.id || 0
+      return orderA - orderB
+    })
+}
+
+function getTopLevelTasks(tasks) {
+  return tasks.filter((task) => !hasParentTask(task))
+}
+
 // Add a new task to the database
 function addTask() {
   if (!db) {
@@ -802,7 +833,7 @@ function addTask() {
 
   request.onsuccess = () => {
     const allTasks = request.result
-    const ongoingTasks = allTasks.filter(task => !task.status)
+    const ongoingTasks = getTopLevelTasks(allTasks).filter(task => !task.status)
     const maxSortOrder = ongoingTasks.length > 0 
       ? Math.max(...ongoingTasks.map(t => t.sortOrder || 0))
       : -1
@@ -848,29 +879,127 @@ function addTask() {
   }
 }
 
+function toggleSubtaskForm(parentId) {
+  const form = document.getElementById(`subtask-form-${parentId}`)
+  if (!form) return
+
+  form.classList.toggle("hidden")
+  if (!form.classList.contains("hidden")) {
+    const input = form.querySelector('input[name="subtask-title"]')
+    if (input) input.focus()
+  }
+}
+
+function addSubtask(event, parentId) {
+  event.preventDefault()
+  event.stopPropagation()
+
+  if (!db) {
+    console.error("Database not initialized")
+    return
+  }
+
+  const form = event.target
+  const input = form.querySelector('input[name="subtask-title"]')
+  const title = input ? input.value.trim() : ""
+
+  if (!title) {
+    alert("Please enter a subtask")
+    return
+  }
+
+  const numericParentId = Number(parentId)
+  const readTransaction = db.transaction(["tasks"], "readonly")
+  const taskStore = readTransaction.objectStore("tasks")
+  const request = taskStore.getAll()
+
+  request.onsuccess = () => {
+    const allTasks = request.result
+    const parentTask = allTasks.find((task) => task.id === numericParentId)
+
+    if (!parentTask || parentTask.status || hasParentTask(parentTask)) {
+      showNotification("Subtasks can only be added to active top-level tasks.", "error")
+      return
+    }
+
+    const subtasks = getSubtasksForParent(allTasks, numericParentId)
+    const maxSubtaskOrder = subtasks.length > 0
+      ? Math.max(...subtasks.map((task) => task.subtaskOrder || 0))
+      : -1
+
+    const subtask = {
+      title,
+      type: "Goal",
+      status: false,
+      startDate: getTodayDate(),
+      endDate: null,
+      parentId: numericParentId,
+      subtaskOrder: maxSubtaskOrder + 1,
+    }
+
+    const writeTransaction = db.transaction(["tasks"], "readwrite")
+    const writeTaskStore = writeTransaction.objectStore("tasks")
+    const addRequest = writeTaskStore.add(subtask)
+
+    addRequest.onsuccess = () => {
+      input.value = ""
+      form.classList.add("hidden")
+    }
+
+    addRequest.onerror = (event) => {
+      console.error("Error adding subtask:", event.target.error)
+      showNotification("Error adding subtask. Please try again.", "error")
+    }
+
+    writeTransaction.oncomplete = () => {
+      updateOngoingTasks(false)
+    }
+
+    writeTransaction.onerror = (event) => {
+      console.error("Subtask transaction error:", event.target.error)
+    }
+  }
+
+  request.onerror = (event) => {
+    console.error("Error checking parent task:", event.target.error)
+    showNotification("Error adding subtask. Please try again.", "error")
+  }
+}
+
 // Mark a task as complete and create next day's task if Non-Negotiable
 function completeTask(taskId) {
+  const numericTaskId = Number(taskId)
   // Look up the task type first for animation branching
-  const taskElement = document.querySelector(`.task-item[data-task-id="${taskId}"]`)
-  const isNonNegotiable = taskElement && taskElement.querySelector('.task-type-badge.non-negotiable')
+  const taskElement = document.querySelector(`[data-task-id="${numericTaskId}"]`)
+  const isSubtaskElement = taskElement && taskElement.classList.contains('subtask-item')
+  const isNonNegotiable = !isSubtaskElement && taskElement && taskElement.querySelector('.task-type-badge.non-negotiable')
+  const incompleteSubtasks = Number(taskElement?.dataset.incompleteSubtasks || 0)
+
+  if (!isSubtaskElement && incompleteSubtasks > 0) {
+    const checkbox = taskElement.querySelector('.task-parent-row .confirmation-button')
+    if (checkbox) checkbox.checked = false
+    showNotification("Finish all subtasks before completing the parent task.", "info")
+    return
+  }
 
   if (taskElement) {
     launchConfetti(taskElement)
     if (isNonNegotiable) {
       // Non-negotiables: celebrate then reset (don't remove)
       taskElement.classList.add('task-celebrating')
-      taskElement.querySelector('.confirmation-button').checked = true
+      const checkbox = taskElement.querySelector('.task-parent-row .confirmation-button')
+      if (checkbox) checkbox.checked = true
       taskElement.addEventListener('animationend', () => {
         taskElement.classList.remove('task-celebrating')
-        taskElement.querySelector('.confirmation-button').checked = false
+        if (checkbox) checkbox.checked = false
       }, { once: true })
     } else {
       // Regular goals: animate out and remove
-      taskElement.classList.add('task-completing')
+      taskElement.classList.add(isSubtaskElement ? 'subtask-completing' : 'task-completing')
       taskElement.addEventListener('animationend', () => {
         taskElement.remove()
         const taskList = document.getElementById('ongoing-tasks')
-        if (taskList && taskList.children.length === 0) {
+        if (taskList && taskList.children.length === 0 && !isSubtaskElement) {
           taskList.innerHTML = '<div class="empty-state"><span class="material-symbols-outlined">inventory_2</span>No ongoing tasks. Add one below!</div>'
         }
       }, { once: true })
@@ -881,22 +1010,24 @@ function completeTask(taskId) {
   setTimeout(() => {
     const transaction = db.transaction(["tasks"], "readwrite")
     const taskStore = transaction.objectStore("tasks")
+    let shouldRefreshOngoing = false
 
     transaction.oncomplete = () => {
-      updateDisplayAfterTaskChange()
+      updateDisplayAfterTaskChange(shouldRefreshOngoing)
     }
 
     transaction.onerror = (event) => {
       console.error("Error completing task:", event.target.error)
     }
 
-    taskStore.get(taskId).onsuccess = (event) => {
+    taskStore.get(numericTaskId).onsuccess = (event) => {
       const task = event.target.result
       if (!task) {
-        console.error("Task not found for completion, ID:", taskId)
+        console.error("Task not found for completion, ID:", numericTaskId)
         return
       }
 
+      shouldRefreshOngoing = hasParentTask(task) || task.type === "Non-Negotiable"
       task.status = true
       const today = getTodayDate()
       console.log('Setting endDate to:', today)
@@ -905,12 +1036,12 @@ function completeTask(taskId) {
 
       taskStore.put(task).onsuccess = () => {
         // If task is Non-Negotiable, create next day's task
-        if (task.type === "Non-Negotiable") {
+        if (task.type === "Non-Negotiable" && !hasParentTask(task)) {
           // Get current max sortOrder for ongoing tasks
           const getAllRequest = taskStore.getAll()
           getAllRequest.onsuccess = () => {
             const allTasks = getAllRequest.result
-            const ongoingTasks = allTasks.filter(t => !t.status)
+            const ongoingTasks = getTopLevelTasks(allTasks).filter(t => !t.status)
             const maxSortOrder = ongoingTasks.length > 0 
               ? Math.max(...ongoingTasks.map(t => t.sortOrder || 0))
               : -1
@@ -923,17 +1054,7 @@ function completeTask(taskId) {
               endDate: null,
               sortOrder: maxSortOrder + 1
             }
-            taskStore.add(nextTask).onsuccess = (e) => {
-              // Update the DOM element to point to the new task ID
-              if (taskElement) {
-                const newId = e.target.result
-                taskElement.dataset.taskId = newId
-                const checkbox = taskElement.querySelector('.confirmation-button')
-                if (checkbox) checkbox.setAttribute('onchange', `completeTask(${newId})`)
-                const deleteBtn = taskElement.querySelector('.task-delete-btn')
-                if (deleteBtn) deleteBtn.setAttribute('onclick', `deleteTask(${newId})`)
-              }
-            }
+            taskStore.add(nextTask)
           }
         }
       }
@@ -986,12 +1107,54 @@ function updateDisplay() {
   updateChart()
 }
 
-// Lighter update after task completion — skips quote refresh and ongoing tasks rebuild
-function updateDisplayAfterTaskChange() {
+// Lighter update after task completion - skips quote refresh unless the task list needs rebuilding.
+function updateDisplayAfterTaskChange(refreshOngoingTasks = false) {
+  if (refreshOngoingTasks) {
+    updateOngoingTasks(false)
+  }
+  updateTodayCompletionCount()
   updateCompletedTasks()
   updateStreak()
   updateLast7DaysOverview()
   updateChart()
+}
+
+function syncDashboardTaskCardHeight() {
+  const dashboard = document.getElementById("dashboard-section")
+  const ongoingCard = document.querySelector(".ongoing-tasks-card")
+  const statsColumn = document.querySelector(".dashboard-stats-column")
+
+  if (!dashboard || !ongoingCard || !statsColumn) return
+
+  if (dashboardHeightSyncFrame) {
+    cancelAnimationFrame(dashboardHeightSyncFrame)
+  }
+
+  dashboardHeightSyncFrame = requestAnimationFrame(() => {
+    dashboardHeightSyncFrame = null
+
+    if (window.innerWidth < 1024 || dashboard.classList.contains("hidden")) {
+      ongoingCard.style.height = ""
+      return
+    }
+
+    const visibleCards = Array.from(statsColumn.children).filter((element) => {
+      return element.getClientRects().length > 0 && !element.classList.contains("hidden")
+    })
+
+    if (visibleCards.length === 0) {
+      ongoingCard.style.height = ""
+      return
+    }
+
+    const firstCardRect = visibleCards[0].getBoundingClientRect()
+    const lastCardRect = visibleCards[visibleCards.length - 1].getBoundingClientRect()
+    const targetHeight = Math.ceil(lastCardRect.bottom - firstCardRect.top)
+
+    if (targetHeight > 0) {
+      ongoingCard.style.height = `${targetHeight}px`
+    }
+  })
 }
 
 // Update the today's info section with date and quote
@@ -1010,16 +1173,47 @@ function updateTodayInfo() {
   request.onsuccess = () => {
     const completedToday = request.result
     todayInfo.innerHTML = `
-            <div class="flex flex-wrap items-baseline gap-2 mb-4">
+            <div class="today-summary-row">
                 <h2 class="text-xl md:text-2xl font-bold text-zinc-900 dark:text-white">Today is the ${today.getDate()} of ${today.toLocaleString("default", { month: "long" })}</h2>
                 <span class="text-zinc-300 dark:text-zinc-600">&middot;</span>
-                <span class="text-sm font-medium text-zinc-500 dark:text-zinc-400">${completedToday} tasks completed</span>
+                <span id="today-completed-count" class="text-sm font-medium text-zinc-500 dark:text-zinc-400">${completedToday} tasks completed</span>
             </div>
-            <div class="quote-box">
-                <p class="italic text-sm md:text-base leading-relaxed text-zinc-600 dark:text-zinc-300 pl-4">"${quote.text}"</p>
-                ${quote.author ? `<p class="text-right text-xs text-zinc-400 dark:text-zinc-500 mt-2">&mdash; ${quote.author}</p>` : ''}
+            <div class="quote-streak-row">
+                <div class="quote-box">
+                    <p class="italic text-sm md:text-base leading-relaxed text-zinc-600 dark:text-zinc-300 pl-4">"${escapeHTML(quote.text)}"</p>
+                    ${quote.author ? `<p class="text-right text-xs text-zinc-400 dark:text-zinc-500 mt-2">- ${escapeHTML(quote.author)}</p>` : ''}
+                </div>
+                <div class="compact-streak-card" aria-label="Current streak">
+                    <div class="compact-streak-icon">
+                        <span class="material-symbols-outlined fill">local_fire_department</span>
+                    </div>
+                    <div class="min-w-0">
+                        <p class="compact-streak-label">Current Streak</p>
+                        <span id="streak-count" class="compact-streak-count">0 days</span>
+                    </div>
+                </div>
             </div>
         `
+  }
+}
+
+function updateTodayCompletionCount() {
+  if (!db) return
+
+  const countElement = document.getElementById("today-completed-count")
+  if (!countElement) return
+
+  const transaction = db.transaction(["tasks"], "readonly")
+  const taskStore = transaction.objectStore("tasks")
+  const index = taskStore.index("endDate")
+  const request = index.count(IDBKeyRange.only(getTodayDate()))
+
+  request.onsuccess = () => {
+    countElement.textContent = `${request.result} tasks completed`
+  }
+
+  request.onerror = (event) => {
+    console.error("Error updating today's completion count:", event.target.error)
   }
 }
 
@@ -1050,43 +1244,76 @@ function updateOngoingTasks(animate = true) {
       const allTasks = request.result
       console.log("All tasks:", allTasks)
 
-      let tasks = allTasks.filter((task) => !task.status)
-      
-      // Sort tasks by sortOrder
-      tasks.sort((a, b) => {
-        const orderA = a.sortOrder !== undefined ? a.sortOrder : 999999
-        const orderB = b.sortOrder !== undefined ? b.sortOrder : 999999
-        return orderA - orderB
-      })
-      
-      console.log("Filtered and sorted ongoing tasks:", tasks)
+      let tasks = getTopLevelTasks(allTasks).filter((task) => !task.status)
 
-      // Sort tasks by order field (ascending)
       tasks.sort((a, b) => {
-        const orderA = a.order !== undefined ? a.order : 999999
-        const orderB = b.order !== undefined ? b.order : 999999
+        const orderA = a.sortOrder !== undefined ? a.sortOrder : a.order !== undefined ? a.order : 999999
+        const orderB = b.sortOrder !== undefined ? b.sortOrder : b.order !== undefined ? b.order : 999999
         return orderA - orderB
       })
+
+      console.log("Filtered and sorted ongoing tasks:", tasks)
 
       if (tasks.length === 0) {
         taskList.innerHTML = '<div class="empty-state"><span class="material-symbols-outlined">inventory_2</span>No ongoing tasks. Add one below!</div>'
+        syncDashboardTaskCardHeight()
         return
       }
 
       tasks.forEach((task, index) => {
+        const subtasks = getSubtasksForParent(allTasks, task.id)
+        const incompleteSubtasks = subtasks.filter((subtask) => !subtask.status)
+        const completedSubtasks = subtasks.length - incompleteSubtasks.length
+        const progressHTML = subtasks.length > 0
+          ? `<span class="subtask-progress">${completedSubtasks}/${subtasks.length} done</span>`
+          : ""
+        const subtaskListHTML = incompleteSubtasks.length > 0
+          ? `<div class="subtask-list">
+              ${incompleteSubtasks.map((subtask) => `
+                <div class="subtask-item" data-task-id="${subtask.id}">
+                  <input type="checkbox" onchange="completeTask(${subtask.id})" class="confirmation-button" aria-label="Complete subtask ${escapeHTML(subtask.title)}">
+                  <span class="subtask-title">${escapeHTML(subtask.title)}</span>
+                  <button type="button" onclick="deleteTask(${subtask.id})" class="task-delete-btn" title="Delete subtask">
+                    <span class="material-symbols-outlined text-lg">close</span>
+                  </button>
+                </div>
+              `).join('')}
+            </div>`
+          : subtasks.length > 0
+            ? `<div class="subtask-list"><div class="subtask-empty">All subtasks complete</div></div>`
+            : ""
         const taskElement = document.createElement("div")
-        taskElement.className = animate ? "task-item stagger-" + Math.min(index + 1, 8) : "task-item"
+        taskElement.className = animate ? "task-item task-parent stagger-" + Math.min(index + 1, 8) : "task-item task-parent"
         taskElement.draggable = true
         taskElement.dataset.taskId = task.id
+        taskElement.dataset.incompleteSubtasks = incompleteSubtasks.length
         const badgeClass = task.type === 'Non-Negotiable' ? 'non-negotiable' : 'goal'
         taskElement.innerHTML = `
-                    <span class="material-symbols-outlined drag-handle text-lg">drag_indicator</span>
-                    <input type="checkbox" onchange="completeTask(${task.id})" class="confirmation-button">
-                    <span class="flex-grow text-sm font-medium text-zinc-700 dark:text-zinc-200">${task.title}</span>
-                    <span class="task-type-badge ${badgeClass}">${task.type}</span>
-                    <button type="button" onclick="deleteTask(${task.id})" class="task-delete-btn" title="Delete task">
-                        <span class="material-symbols-outlined text-lg">close</span>
-                    </button>
+                    <div class="task-parent-row">
+                      <span class="material-symbols-outlined drag-handle text-lg">drag_indicator</span>
+                      <input type="checkbox" onchange="completeTask(${task.id})" class="confirmation-button" aria-label="Complete task ${escapeHTML(task.title)}">
+                      <span class="task-title-text">${escapeHTML(task.title)}</span>
+                      <div class="task-meta-actions">
+                        ${progressHTML}
+                        <span class="task-type-badge ${badgeClass}">${task.type}</span>
+                        <button type="button" onclick="toggleSubtaskForm(${task.id})" class="subtask-toggle-btn" title="Add subtask" aria-controls="subtask-form-${task.id}">
+                          <span class="material-symbols-outlined text-base">add_task</span>
+                          <span class="subtask-toggle-text">Subtask</span>
+                        </button>
+                        <button type="button" onclick="deleteTask(${task.id})" class="task-delete-btn" title="Delete task">
+                          <span class="material-symbols-outlined text-lg">close</span>
+                        </button>
+                      </div>
+                    </div>
+                    ${subtaskListHTML}
+                    <form id="subtask-form-${task.id}" class="subtask-form hidden" onsubmit="addSubtask(event, ${task.id})">
+                      <input type="text" name="subtask-title" placeholder="Add a subtask" class="input-field subtask-input" autocomplete="off">
+                      <button type="submit" class="btn-primary subtask-add-btn">
+                        <span class="material-symbols-outlined text-base">add</span>
+                        Add
+                      </button>
+                      <button type="button" onclick="toggleSubtaskForm(${task.id})" class="btn-ghost subtask-cancel-btn">Cancel</button>
+                    </form>
                 `
         
         // Add drag event listeners
@@ -1099,11 +1326,14 @@ function updateOngoingTasks(animate = true) {
         
         taskList.appendChild(taskElement)
       })
+
+      syncDashboardTaskCardHeight()
     }
 
     request.onerror = (event) => {
       console.error("Error fetching tasks:", event.target.error)
       taskList.innerHTML = '<div class="empty-state"><span class="material-symbols-outlined">error</span>Error loading tasks</div>'
+      syncDashboardTaskCardHeight()
     }
   } catch (error) {
     console.error("Error in updateOngoingTasks:", error)
@@ -1124,7 +1354,9 @@ function updateCompletedTasks() {
   const request = taskStore.getAll()
 
   request.onsuccess = () => {
-    let tasks = request.result
+    const allTasks = request.result
+    const taskById = new Map(allTasks.map((task) => [task.id, task]))
+    let tasks = allTasks
       .filter((task) => task.status === true) // Filter completed tasks
       .sort((a, b) => {
         // Sort by precise completion time first, then fallback to endDate and id
@@ -1147,6 +1379,7 @@ function updateCompletedTasks() {
 
     if (tasks.length === 0) {
       completedList.innerHTML = '<div class="empty-state"><span class="material-symbols-outlined">check_circle</span>No completed tasks yet</div>'
+      syncDashboardTaskCardHeight()
       return
     }
 
@@ -1161,22 +1394,31 @@ function updateCompletedTasks() {
     }
 
     tasks.forEach((task, index) => {
+      const isSubtask = hasParentTask(task)
+      const parentTask = isSubtask ? taskById.get(task.parentId) : null
+      const titleHTML = isSubtask && parentTask
+        ? `<span class="completed-parent-title">${escapeHTML(parentTask.title)}</span><span class="completed-separator">/</span><span>${escapeHTML(task.title)}</span>`
+        : `<span>${escapeHTML(task.title)}</span>`
       const taskElement = document.createElement("div")
       taskElement.className = "completed-item stagger-" + Math.min(index + 1, 8)
       taskElement.innerHTML = `
-                <div class="flex items-center gap-2">
+                <div class="completed-title-wrap">
                     <span class="material-symbols-outlined text-emerald-400 text-base">check_circle</span>
-                    <span class="text-sm font-medium text-zinc-600 dark:text-zinc-300">${task.title}</span>
+                    <span class="completed-title-text">${titleHTML}</span>
+                    ${isSubtask ? '<span class="completed-subtask-badge">Subtask</span>' : ''}
                 </div>
                 <span class="text-xs font-medium text-zinc-400 dark:text-zinc-500">${task.endDate}</span>
             `
       completedList.appendChild(taskElement)
     })
+
+    syncDashboardTaskCardHeight()
   }
 
   request.onerror = (event) => {
     console.error("Error fetching completed tasks:", event.target.error)
     completedList.innerHTML = '<div class="empty-state"><span class="material-symbols-outlined">error</span>Error loading completed tasks</div>'
+    syncDashboardTaskCardHeight()
   }
 }
 
@@ -1377,6 +1619,8 @@ function updateLast7DaysOverview() {
         </div>
       `
     }).join('')
+
+    syncDashboardTaskCardHeight()
   })
 }
 
@@ -1418,26 +1662,53 @@ function toggleTheme() {
   updateTimePieChart()
 }
 
-// Add this new function to handle task deletion
 function deleteTask(taskId) {
-  if (!confirm("Are you sure you want to delete this task?")) {
-    return;
-  }
-
-  const transaction = db.transaction(["tasks"], "readwrite");
-  const taskStore = transaction.objectStore("tasks");
-
-  const request = taskStore.delete(taskId);
+  const numericTaskId = Number(taskId)
+  const readTransaction = db.transaction(["tasks"], "readonly")
+  const taskStore = readTransaction.objectStore("tasks")
+  const request = taskStore.getAll()
 
   request.onsuccess = () => {
-    console.log("Task deleted successfully");
-    updateDisplay();
-  };
+    const allTasks = request.result
+    const task = allTasks.find((item) => item.id === numericTaskId)
+
+    if (!task) {
+      showNotification("Task not found.", "error")
+      return
+    }
+
+    const childTasks = allTasks.filter((item) => item.parentId === numericTaskId)
+    const deleteMessage = childTasks.length > 0
+      ? `Delete this task and its ${childTasks.length} subtasks? This cannot be undone.`
+      : "Are you sure you want to delete this task?"
+
+    if (!confirm(deleteMessage)) {
+      return
+    }
+
+    const writeTransaction = db.transaction(["tasks"], "readwrite")
+    const writeTaskStore = writeTransaction.objectStore("tasks")
+
+    writeTaskStore.delete(numericTaskId)
+    childTasks.forEach((childTask) => {
+      writeTaskStore.delete(childTask.id)
+    })
+
+    writeTransaction.oncomplete = () => {
+      console.log("Task deleted successfully")
+      updateDisplay()
+    }
+
+    writeTransaction.onerror = (event) => {
+      console.error("Error deleting task:", event.target.error)
+      alert("Error deleting task. Please try again.")
+    }
+  }
 
   request.onerror = (event) => {
-    console.error("Error deleting task:", event.target.error);
-    alert("Error deleting task. Please try again.");
-  };
+    console.error("Error checking task before delete:", event.target.error)
+    alert("Error deleting task. Please try again.")
+  }
 }
 
 // Drag and Drop Event Handlers
@@ -1478,7 +1749,7 @@ function handleDrop(e) {
   if (draggedElement !== this) {
     // Get all task elements
     const taskList = document.getElementById("ongoing-tasks")
-    const allTasks = Array.from(taskList.children)
+    const allTasks = Array.from(taskList.children).filter((task) => task.classList.contains('task-parent'))
     
     // Find positions
     const draggedIndex = allTasks.indexOf(draggedElement)
@@ -1503,7 +1774,7 @@ function handleDragEnd(e) {
   
   // Remove all drag styling
   const taskList = document.getElementById("ongoing-tasks")
-  const allTasks = Array.from(taskList.children)
+  const allTasks = Array.from(taskList.children).filter((task) => task.classList.contains('task-parent'))
   allTasks.forEach(task => {
     task.classList.remove('drag-over')
   })
@@ -1512,7 +1783,7 @@ function handleDragEnd(e) {
 // Save the current task order to database
 function saveTaskOrder() {
   const taskList = document.getElementById("ongoing-tasks")
-  const taskElements = Array.from(taskList.children)
+  const taskElements = Array.from(taskList.children).filter((task) => task.classList.contains('task-parent'))
   
   // Get task IDs in current order
   const taskIds = taskElements.map(el => parseInt(el.dataset.taskId))
@@ -2167,6 +2438,9 @@ function importDatabase() {
         }
         if (!['Goal', 'Non-Negotiable'].includes(task.type)) {
           throw new Error("Invalid task data: type must be 'Goal' or 'Non-Negotiable'");
+        }
+        if (task.parentId !== undefined && task.parentId !== null && typeof task.parentId !== 'number') {
+          throw new Error("Invalid task data: parentId must be a number when provided");
         }
       }
 
