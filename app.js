@@ -972,8 +972,8 @@ function addTask() {
 
       addRequest.onsuccess = (event) => {
         console.log("Task added successfully, ID:", event.target.result)
+        task.id = event.target.result
         taskInput.value = ""
-        updateDisplay()
       }
 
       addRequest.onerror = (event) => {
@@ -983,6 +983,7 @@ function addTask() {
 
       writeTransaction.oncomplete = () => {
         console.log("Transaction completed successfully")
+        updateDisplayAfterTaskAdd(task)
       }
 
       writeTransaction.onerror = (event) => {
@@ -1234,6 +1235,34 @@ function updateDisplayAfterTaskChange(refreshOngoingTasks = false) {
   updateChart()
 }
 
+function updateDisplayAfterTaskAdd(task) {
+  const taskList = document.getElementById("ongoing-tasks")
+
+  if (!taskList || !task || hasParentTask(task)) {
+    updateOngoingTasks(false)
+    return
+  }
+
+  if (typeof taskList.querySelector !== "function" ||
+      typeof taskList.querySelectorAll !== "function") {
+    updateOngoingTasks(false)
+    return
+  }
+
+  if (taskList.querySelector(`[data-task-id="${task.id}"]`)) {
+    return
+  }
+
+  const emptyState = taskList.querySelector(".empty-state")
+  if (emptyState) {
+    emptyState.remove()
+  }
+
+  const taskIndex = taskList.querySelectorAll(".task-parent").length
+  taskList.appendChild(createOngoingTaskElement(task, [task], taskIndex, false))
+  syncDashboardTaskCardHeight()
+}
+
 function syncDashboardTaskCardHeight() {
   const dashboard = document.getElementById("dashboard-section")
   const ongoingCard = document.querySelector(".ongoing-tasks-card")
@@ -1333,6 +1362,72 @@ function updateTodayCompletionCount() {
   }
 }
 
+function createOngoingTaskElement(task, allTasks, index, animate = true) {
+  const subtasks = getSubtasksForParent(allTasks, task.id)
+  const incompleteSubtasks = subtasks.filter((subtask) => !subtask.status)
+  const completedSubtasks = subtasks.length - incompleteSubtasks.length
+  const progressHTML = subtasks.length > 0
+    ? `<span class="subtask-progress">${completedSubtasks}/${subtasks.length} done</span>`
+    : ""
+  const subtaskListHTML = incompleteSubtasks.length > 0
+    ? `<div class="subtask-list">
+        ${incompleteSubtasks.map((subtask) => `
+          <div class="subtask-item" data-task-id="${subtask.id}">
+            <input type="checkbox" onchange="completeTask(${subtask.id})" class="confirmation-button" aria-label="Complete subtask ${escapeHTML(subtask.title)}">
+            <span class="subtask-title">${escapeHTML(subtask.title)}</span>
+            <button type="button" onclick="deleteTask(${subtask.id})" class="task-delete-btn" title="Delete subtask">
+              <span class="material-symbols-outlined text-lg">close</span>
+            </button>
+          </div>
+        `).join('')}
+      </div>`
+    : subtasks.length > 0
+      ? `<div class="subtask-list"><div class="subtask-empty">All subtasks complete</div></div>`
+      : ""
+  const taskElement = document.createElement("div")
+  taskElement.className = animate ? "task-item task-parent stagger-" + Math.min(index + 1, 8) : "task-item task-parent"
+  taskElement.draggable = true
+  taskElement.dataset.taskId = task.id
+  taskElement.dataset.incompleteSubtasks = incompleteSubtasks.length
+  const badgeClass = task.type === 'Non-Negotiable' ? 'non-negotiable' : 'goal'
+  taskElement.innerHTML = `
+              <div class="task-parent-row">
+                <span class="material-symbols-outlined drag-handle text-lg">drag_indicator</span>
+                <input type="checkbox" onchange="completeTask(${task.id})" class="confirmation-button" aria-label="Complete task ${escapeHTML(task.title)}">
+                <span class="task-title-text">${escapeHTML(task.title)}</span>
+                <div class="task-meta-actions">
+                  ${progressHTML}
+                  <span class="task-type-badge ${badgeClass}">${task.type}</span>
+                  <button type="button" onclick="toggleSubtaskForm(${task.id})" class="subtask-toggle-btn" title="Add subtask" aria-controls="subtask-form-${task.id}">
+                    <span class="material-symbols-outlined text-base">add_task</span>
+                    <span class="subtask-toggle-text">Subtask</span>
+                  </button>
+                  <button type="button" onclick="deleteTask(${task.id})" class="task-delete-btn" title="Delete task">
+                    <span class="material-symbols-outlined text-lg">close</span>
+                  </button>
+                </div>
+              </div>
+              ${subtaskListHTML}
+              <form id="subtask-form-${task.id}" class="subtask-form hidden" onsubmit="addSubtask(event, ${task.id})">
+                <input type="text" name="subtask-title" placeholder="Add a subtask" class="input-field subtask-input" autocomplete="off">
+                <button type="submit" class="btn-primary subtask-add-btn">
+                  <span class="material-symbols-outlined text-base">add</span>
+                  Add
+                </button>
+                <button type="button" onclick="toggleSubtaskForm(${task.id})" class="btn-ghost subtask-cancel-btn">Cancel</button>
+              </form>
+          `
+
+  taskElement.addEventListener('dragstart', handleDragStart)
+  taskElement.addEventListener('dragover', handleDragOver)
+  taskElement.addEventListener('drop', handleDrop)
+  taskElement.addEventListener('dragend', handleDragEnd)
+  taskElement.addEventListener('dragenter', handleDragEnter)
+  taskElement.addEventListener('dragleave', handleDragLeave)
+
+  return taskElement
+}
+
 // Update the list of ongoing (uncompleted) tasks
 // animate: whether to play stagger entry animations (default true on initial load)
 function updateOngoingTasks(animate = true) {
@@ -1377,70 +1472,7 @@ function updateOngoingTasks(animate = true) {
       }
 
       tasks.forEach((task, index) => {
-        const subtasks = getSubtasksForParent(allTasks, task.id)
-        const incompleteSubtasks = subtasks.filter((subtask) => !subtask.status)
-        const completedSubtasks = subtasks.length - incompleteSubtasks.length
-        const progressHTML = subtasks.length > 0
-          ? `<span class="subtask-progress">${completedSubtasks}/${subtasks.length} done</span>`
-          : ""
-        const subtaskListHTML = incompleteSubtasks.length > 0
-          ? `<div class="subtask-list">
-              ${incompleteSubtasks.map((subtask) => `
-                <div class="subtask-item" data-task-id="${subtask.id}">
-                  <input type="checkbox" onchange="completeTask(${subtask.id})" class="confirmation-button" aria-label="Complete subtask ${escapeHTML(subtask.title)}">
-                  <span class="subtask-title">${escapeHTML(subtask.title)}</span>
-                  <button type="button" onclick="deleteTask(${subtask.id})" class="task-delete-btn" title="Delete subtask">
-                    <span class="material-symbols-outlined text-lg">close</span>
-                  </button>
-                </div>
-              `).join('')}
-            </div>`
-          : subtasks.length > 0
-            ? `<div class="subtask-list"><div class="subtask-empty">All subtasks complete</div></div>`
-            : ""
-        const taskElement = document.createElement("div")
-        taskElement.className = animate ? "task-item task-parent stagger-" + Math.min(index + 1, 8) : "task-item task-parent"
-        taskElement.draggable = true
-        taskElement.dataset.taskId = task.id
-        taskElement.dataset.incompleteSubtasks = incompleteSubtasks.length
-        const badgeClass = task.type === 'Non-Negotiable' ? 'non-negotiable' : 'goal'
-        taskElement.innerHTML = `
-                    <div class="task-parent-row">
-                      <span class="material-symbols-outlined drag-handle text-lg">drag_indicator</span>
-                      <input type="checkbox" onchange="completeTask(${task.id})" class="confirmation-button" aria-label="Complete task ${escapeHTML(task.title)}">
-                      <span class="task-title-text">${escapeHTML(task.title)}</span>
-                      <div class="task-meta-actions">
-                        ${progressHTML}
-                        <span class="task-type-badge ${badgeClass}">${task.type}</span>
-                        <button type="button" onclick="toggleSubtaskForm(${task.id})" class="subtask-toggle-btn" title="Add subtask" aria-controls="subtask-form-${task.id}">
-                          <span class="material-symbols-outlined text-base">add_task</span>
-                          <span class="subtask-toggle-text">Subtask</span>
-                        </button>
-                        <button type="button" onclick="deleteTask(${task.id})" class="task-delete-btn" title="Delete task">
-                          <span class="material-symbols-outlined text-lg">close</span>
-                        </button>
-                      </div>
-                    </div>
-                    ${subtaskListHTML}
-                    <form id="subtask-form-${task.id}" class="subtask-form hidden" onsubmit="addSubtask(event, ${task.id})">
-                      <input type="text" name="subtask-title" placeholder="Add a subtask" class="input-field subtask-input" autocomplete="off">
-                      <button type="submit" class="btn-primary subtask-add-btn">
-                        <span class="material-symbols-outlined text-base">add</span>
-                        Add
-                      </button>
-                      <button type="button" onclick="toggleSubtaskForm(${task.id})" class="btn-ghost subtask-cancel-btn">Cancel</button>
-                    </form>
-                `
-        
-        // Add drag event listeners
-        taskElement.addEventListener('dragstart', handleDragStart)
-        taskElement.addEventListener('dragover', handleDragOver)
-        taskElement.addEventListener('drop', handleDrop)
-        taskElement.addEventListener('dragend', handleDragEnd)
-        taskElement.addEventListener('dragenter', handleDragEnter)
-        taskElement.addEventListener('dragleave', handleDragLeave)
-        
-        taskList.appendChild(taskElement)
+        taskList.appendChild(createOngoingTaskElement(task, allTasks, index, animate))
       })
 
       syncDashboardTaskCardHeight()
