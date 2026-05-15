@@ -29,6 +29,19 @@ const DAILY_ALERT_DEFAULTS = {
   email: "",
 }
 
+const WEEKLY_ROUTINES_SETTING_KEY = "weeklyRoutines"
+const ROUTINE_NAME_MAX_LENGTH = 60
+
+const WEEKDAY_ROUTINES = [
+  { key: "sunday", label: "Sunday", inputId: "routine-sunday" },
+  { key: "monday", label: "Monday", inputId: "routine-monday" },
+  { key: "tuesday", label: "Tuesday", inputId: "routine-tuesday" },
+  { key: "wednesday", label: "Wednesday", inputId: "routine-wednesday" },
+  { key: "thursday", label: "Thursday", inputId: "routine-thursday" },
+  { key: "friday", label: "Friday", inputId: "routine-friday" },
+  { key: "saturday", label: "Saturday", inputId: "routine-saturday" },
+]
+
 // Update user info display from Google Drive authentication
 function updateUserInfoDisplay(userInfo) {
   const userNameElement = document.getElementById('user-name');
@@ -331,6 +344,7 @@ function setActiveView(view) {
   // Get all section elements
   const dashboard = document.getElementById('dashboard-section')
   const calendar = document.getElementById('calendar-section')
+  const routines = document.getElementById('routines-section')
   const timeTracker = document.getElementById('time-tracker-section')
   const timeOverview = document.getElementById('time-overview-section')
   const settings = document.getElementById('settings-section')
@@ -340,6 +354,7 @@ function setActiveView(view) {
   // Hide all sections first
   dashboard.classList.add('hidden')
   calendar.classList.add('hidden')
+  routines.classList.add('hidden')
   timeTracker.classList.add('hidden')
   timeOverview.classList.add('hidden')
   settings.classList.add('hidden')
@@ -357,6 +372,12 @@ function setActiveView(view) {
       // Calendar only
       calendar.classList.remove('hidden')
       resetDb.classList.remove('hidden')
+      break
+    case "routines":
+      // Routines: edit weekly themes
+      routines.classList.remove('hidden')
+      resetDb.classList.remove('hidden')
+      populateRoutinesUI()
       break
     case "time":
       // Time Overview: time tracker + time overview
@@ -493,6 +514,11 @@ function setupEventListeners() {
     alertChannel.addEventListener("change", updateAlertChannelVisibility)
   }
 
+  const routinesForm = document.getElementById("routines-form")
+  if (routinesForm) {
+    routinesForm.addEventListener("submit", saveRoutines)
+  }
+
   window.addEventListener("resize", syncDashboardTaskCardHeight)
 
   // Initialize default view as dashboard
@@ -538,6 +564,95 @@ function setSettingValue(key, value) {
     request.onsuccess = () => resolve()
     request.onerror = (event) => reject(event.target.error)
   })
+}
+
+function getDefaultWeeklyRoutines() {
+  return WEEKDAY_ROUTINES.reduce((routines, day) => {
+    routines[day.key] = ""
+    return routines
+  }, {})
+}
+
+function normalizeWeeklyRoutines(value) {
+  const routines = getDefaultWeeklyRoutines()
+  if (!value || typeof value !== "object") {
+    return routines
+  }
+
+  WEEKDAY_ROUTINES.forEach((day) => {
+    routines[day.key] = typeof value[day.key] === "string"
+      ? value[day.key].trim().slice(0, ROUTINE_NAME_MAX_LENGTH)
+      : ""
+  })
+
+  return routines
+}
+
+async function getWeeklyRoutines() {
+  try {
+    const savedRoutines = await getSettingValue(WEEKLY_ROUTINES_SETTING_KEY)
+    return normalizeWeeklyRoutines(savedRoutines)
+  } catch (error) {
+    console.error("Error loading weekly routines:", error)
+    return getDefaultWeeklyRoutines()
+  }
+}
+
+async function setWeeklyRoutines(routines) {
+  await setSettingValue(WEEKLY_ROUTINES_SETTING_KEY, normalizeWeeklyRoutines(routines))
+}
+
+async function getTodayRoutineName() {
+  const todayKey = WEEKDAY_ROUTINES[new Date().getDay()].key
+  const routines = await getWeeklyRoutines()
+  return (routines[todayKey] || "").trim()
+}
+
+function getTodayRoutineBadgeHTML(routineName) {
+  const trimmedName = (routineName || "").trim()
+  if (!trimmedName) return ""
+
+  return `
+      <span class="text-zinc-300 dark:text-zinc-600">&middot;</span>
+      <span class="today-routine-badge" title="Today's routine">
+        <span class="material-symbols-outlined text-sm">event_repeat</span>
+        ${escapeHTML(trimmedName)}
+      </span>
+    `
+}
+
+async function populateRoutinesUI() {
+  const routines = await getWeeklyRoutines()
+
+  WEEKDAY_ROUTINES.forEach((day) => {
+    const input = document.getElementById(day.inputId)
+    if (input) {
+      input.value = routines[day.key] || ""
+    }
+  })
+}
+
+async function saveRoutines(event) {
+  if (event) {
+    event.preventDefault()
+  }
+
+  const routines = getDefaultWeeklyRoutines()
+
+  WEEKDAY_ROUTINES.forEach((day) => {
+    const input = document.getElementById(day.inputId)
+    routines[day.key] = input ? input.value.trim() : ""
+  })
+
+  try {
+    await setWeeklyRoutines(routines)
+    await updateTodayInfo()
+    updateStreak()
+    showNotification("Routines saved.", "success")
+  } catch (error) {
+    console.error("Error saving routines:", error)
+    showNotification("Failed to save routines.", "error")
+  }
 }
 
 async function getDailyAlertConfig() {
@@ -1098,8 +1213,8 @@ function launchConfetti(taskElement) {
 }
 
 // Update all display elements on the page
-function updateDisplay() {
-  updateTodayInfo()
+async function updateDisplay() {
+  await updateTodayInfo()
   updateOngoingTasks()
   updateCompletedTasks()
   updateStreak()
@@ -1158,23 +1273,22 @@ function syncDashboardTaskCardHeight() {
 }
 
 // Update the today's info section with date and quote
-function updateTodayInfo() {
+async function updateTodayInfo() {
   const today = new Date()
   const todayInfo = document.getElementById("today-info")
   const quote = getRandomQuote()
-
-  const transaction = db.transaction(["tasks"], "readonly")
-  const taskStore = transaction.objectStore("tasks")
-  const index = taskStore.index("endDate")
-
   const todayStr = getTodayDate()
-  const request = index.count(IDBKeyRange.only(todayStr))
 
-  request.onsuccess = () => {
-    const completedToday = request.result
+  if (!todayInfo) return
+
+  try {
+    const completedToday = await getCompletedTasksCountForDate(todayStr)
+    const routineBadgeHTML = getTodayRoutineBadgeHTML(await getTodayRoutineName())
+
     todayInfo.innerHTML = `
             <div class="today-summary-row">
                 <h2 class="text-xl md:text-2xl font-bold text-zinc-900 dark:text-white">Today is the ${today.getDate()} of ${today.toLocaleString("default", { month: "long" })}</h2>
+                ${routineBadgeHTML}
                 <span class="text-zinc-300 dark:text-zinc-600">&middot;</span>
                 <span id="today-completed-count" class="text-sm font-medium text-zinc-500 dark:text-zinc-400">${completedToday} tasks completed</span>
             </div>
@@ -1194,6 +1308,8 @@ function updateTodayInfo() {
                 </div>
             </div>
         `
+  } catch (error) {
+    console.error("Error updating today's info:", error)
   }
 }
 
@@ -2259,7 +2375,8 @@ async function exportDatabase() {
       exportDate: new Date().toISOString(),
       appVersion: "1.0",
       tasks: [],
-      timeTracking: []
+      timeTracking: [],
+      routines: getDefaultWeeklyRoutines()
     };
 
     // Export tasks with error handling for each transaction
@@ -2306,6 +2423,8 @@ async function exportDatabase() {
       }
     });
 
+    const routines = await getWeeklyRoutines();
+
     // Validate exported data
     if (!Array.isArray(tasks) || !Array.isArray(timeTracking)) {
       throw new Error("Exported data is not in expected format");
@@ -2313,6 +2432,7 @@ async function exportDatabase() {
 
     exportData.tasks = tasks;
     exportData.timeTracking = timeTracking;
+    exportData.routines = routines;
 
     // Create JSON string with error handling for circular references
     const jsonString = JSON.stringify(exportData, null, 2);
@@ -2454,6 +2574,8 @@ function importDatabase() {
         }
       }
 
+      const routinesToImport = normalizeWeeklyRoutines(importData.routines);
+
       if (!confirm(`This will import ${importData.tasks.length} tasks and ${importData.timeTracking.length} time tracking entries. This will replace your current data. Continue?`)) {
         return;
       }
@@ -2491,6 +2613,8 @@ function importDatabase() {
           })
         ));
       }
+
+      await setWeeklyRoutines(routinesToImport);
 
       alert(`Successfully imported ${importData.tasks.length} tasks and ${importData.timeTracking.length} time tracking entries! Refreshing display...`);
       updateDisplay();
@@ -2588,7 +2712,8 @@ async function saveToCloud() {
       version: "1.0",
       exportDate: new Date().toISOString(),
       tasks: [],
-      timeTracking: []
+      timeTracking: [],
+      routines: getDefaultWeeklyRoutines()
     };
 
     // Export tasks
@@ -2613,6 +2738,7 @@ async function saveToCloud() {
 
     exportData.tasks = tasks;
     exportData.timeTracking = timeTracking;
+    exportData.routines = await getWeeklyRoutines();
 
     // Create JSON string
     const jsonString = JSON.stringify(exportData, null, 2);
@@ -2684,6 +2810,8 @@ async function importFromJSONString(jsonString) {
       throw new Error("Invalid data structure");
     }
 
+    const routinesToImport = normalizeWeeklyRoutines(importData.routines);
+
     if (!confirm(`This will import ${importData.tasks.length} tasks and ${importData.timeTracking.length} time tracking entries. This will replace your current data. Continue?`)) {
       return;
     }
@@ -2722,6 +2850,8 @@ async function importFromJSONString(jsonString) {
       ));
     }
 
+    await setWeeklyRoutines(routinesToImport);
+
     // Save to localStorage as well
     localStorage.setItem('dailiesapp_cloud_backup', jsonString);
     localStorage.setItem('dailiesapp_cloud_backup_date', new Date().toISOString());
@@ -2746,7 +2876,8 @@ function setupAutoSave() {
         version: "1.0",
         exportDate: new Date().toISOString(),
         tasks: [],
-        timeTracking: []
+        timeTracking: [],
+        routines: getDefaultWeeklyRoutines()
       };
 
       const tasks = await new Promise((resolve, reject) => {
@@ -2767,6 +2898,7 @@ function setupAutoSave() {
 
       exportData.tasks = tasks;
       exportData.timeTracking = timeTracking;
+      exportData.routines = await getWeeklyRoutines();
 
       const jsonString = JSON.stringify(exportData);
       localStorage.setItem('dailiesapp_auto_backup', jsonString);

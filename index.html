@@ -112,6 +112,10 @@
                                 <span class="material-symbols-outlined text-xl">calendar_today</span>
                                 <p class="text-sm font-medium sidebar-text">Calendar</p>
                             </a>
+                            <a class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-xl text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition-all duration-200" href="#" data-view="routines">
+                                <span class="material-symbols-outlined text-xl">event_repeat</span>
+                                <p class="text-sm font-medium sidebar-text">Routines</p>
+                            </a>
                         </div>
                     </div>
 
@@ -290,6 +294,61 @@
                         <div class="card overflow-hidden p-0">
                             <iframe src="https://calendar.google.com/calendar/embed?src=3affb7794a32640ea8df6025a69c72c648d7a76bc853969c65afbac27112029c%40group.calendar.google.com&height=600&wkst=1&ctz=Europe%2FBerlin&showPrint=0&showCalendars=0&showDate=0&showNav=0&showTitle=0&showTz=0&mode=AGENDA&&color=%238e24aa"
                                     style="border-width:0" width="100%" height="600" frameborder="0" scrolling="no" class="rounded-2xl"></iframe>
+                        </div>
+                    </div>
+
+                    <!-- ===== ROUTINES SECTION ===== -->
+                    <div id="routines-section" class="hidden mt-6 animate-slide-up" style="animation-delay: 0.15s">
+                        <div class="card">
+                            <div class="flex items-start justify-between gap-4 mb-6">
+                                <div>
+                                    <h2 class="text-xl font-semibold text-zinc-900 dark:text-white">Routines</h2>
+                                    <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
+                                        Name each weekday theme. Today's theme appears in the top header.
+                                    </p>
+                                </div>
+                                <span class="material-symbols-outlined text-indigo-500 text-2xl">event_repeat</span>
+                            </div>
+
+                            <form id="routines-form" class="routines-form">
+                                <div id="routines-weekday-list" class="routines-weekday-list">
+                                    <label class="routine-day-row">
+                                        <span>Monday</span>
+                                        <input id="routine-monday" type="text" class="input-field" maxlength="60" placeholder="Leg Day">
+                                    </label>
+                                    <label class="routine-day-row">
+                                        <span>Tuesday</span>
+                                        <input id="routine-tuesday" type="text" class="input-field" maxlength="60" placeholder="German Learning Day">
+                                    </label>
+                                    <label class="routine-day-row">
+                                        <span>Wednesday</span>
+                                        <input id="routine-wednesday" type="text" class="input-field" maxlength="60" placeholder="Deep Work">
+                                    </label>
+                                    <label class="routine-day-row">
+                                        <span>Thursday</span>
+                                        <input id="routine-thursday" type="text" class="input-field" maxlength="60" placeholder="Mobility">
+                                    </label>
+                                    <label class="routine-day-row">
+                                        <span>Friday</span>
+                                        <input id="routine-friday" type="text" class="input-field" maxlength="60" placeholder="Review Day">
+                                    </label>
+                                    <label class="routine-day-row">
+                                        <span>Saturday</span>
+                                        <input id="routine-saturday" type="text" class="input-field" maxlength="60" placeholder="Creative Day">
+                                    </label>
+                                    <label class="routine-day-row">
+                                        <span>Sunday</span>
+                                        <input id="routine-sunday" type="text" class="input-field" maxlength="60" placeholder="Reset Day">
+                                    </label>
+                                </div>
+
+                                <div class="routines-actions">
+                                    <button id="save-routines" type="submit" class="btn-primary h-10 px-5">
+                                        <span class="material-symbols-outlined text-lg">save</span>
+                                        Save Routines
+                                    </button>
+                                </div>
+                            </form>
                         </div>
                     </div>
 

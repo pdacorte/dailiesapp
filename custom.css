@@ -71,6 +71,70 @@
   margin-bottom: 1rem;
 }
 
+.today-routine-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  max-width: 100%;
+  padding: 0.25rem 0.6rem;
+  border: 1px solid rgba(99, 102, 241, 0.14);
+  border-radius: 999px;
+  background: rgba(99, 102, 241, 0.08);
+  color: #4f46e5;
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.dark .today-routine-badge {
+  border-color: rgba(129, 140, 248, 0.2);
+  background: rgba(99, 102, 241, 0.14);
+  color: #a5b4fc;
+}
+
+.routines-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.routines-weekday-list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+
+.routine-day-row {
+  display: grid;
+  grid-template-columns: minmax(7rem, 10rem) minmax(0, 1fr);
+  align-items: center;
+  gap: 1rem;
+  padding: 0.875rem;
+  border: 1px solid rgba(228, 228, 231, 0.6);
+  border-radius: var(--radius-sm);
+  background: rgba(250, 250, 250, 0.65);
+}
+
+.dark .routine-day-row {
+  border-color: rgba(63, 63, 70, 0.5);
+  background: rgba(39, 39, 42, 0.35);
+}
+
+.routine-day-row span {
+  color: #3f3f46;
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.dark .routine-day-row span {
+  color: #d4d4d8;
+}
+
+.routines-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .compact-streak-card {
   position: relative;
   display: flex;
@@ -1433,6 +1497,20 @@
   .progress-goal-control {
     width: 100%;
     justify-content: space-between;
+  }
+
+  .routine-day-row {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
+  .routines-actions {
+    justify-content: stretch;
+  }
+
+  .routines-actions .btn-primary {
+    width: 100%;
+    justify-content: center;
   }
 }
 

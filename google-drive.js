@@ -1144,7 +1144,8 @@ async function getCurrentBackupData() {
     exportDate: new Date().toISOString(),
     appVersion: "1.0",
     tasks: [],
-    timeTracking: []
+    timeTracking: [],
+    routines: {}
   };
 
   // Export tasks
@@ -1181,6 +1182,7 @@ async function getCurrentBackupData() {
 
   exportData.tasks = tasks;
   exportData.timeTracking = timeTracking;
+  exportData.routines = typeof getWeeklyRoutines === 'function' ? await getWeeklyRoutines() : {};
 
   return exportData;
 }

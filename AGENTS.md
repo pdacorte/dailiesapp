@@ -13,7 +13,7 @@ DailiesApp is a productivity web application with the following features:
 
 **Technology Stack:**
 - **Frontend**: HTML/CSS/JavaScript with IndexedDB storage
-- **Styling**: Tailwind CSS v3.4.17 (built via @tailwindcss/cli v4.0.0)
+- **Styling**: Tailwind CSS v3.4.17 (built via the Tailwind v3 CLI in `tailwindcss`)
 - **CSS Architecture**: `styles.css` (Tailwind directives + animations) + `custom.css` (component styles)
 - **Design System**: Zinc color palette, Indigo primary (#6366f1), Inter font, Material Symbols icons
 - **Charts**: Chart.js for data visualization (doughnut + line charts)
@@ -83,7 +83,7 @@ node -c app.js
 - Modal dialogs for user interactions (Google Drive sync, export/import)
 
 **CSS/Tailwind:**
-- Use Tailwind CSS utility classes primarily (v3.4.17 via @tailwindcss/cli v4.0.0)
+- Use Tailwind CSS utility classes primarily (v3.4.17 via the Tailwind v3 CLI)
 - `styles.css`: Tailwind directives (`@tailwind base/components/utilities`), CSS variables, animation keyframes
 - `custom.css`: Component classes (`.card`, `.btn-primary`, `.task-item`, `.confirmation-button`, etc.)
 - Dark mode support via `dark:` prefix classes and `.dark` parent class strategy
@@ -361,7 +361,7 @@ Example: `feat: Add dark mode support for time tracking pie chart`
 
 ## Additional Notes
 
-- The project uses Tailwind CSS v3.4.17 built via @tailwindcss/cli v4.0.0
+- The project uses Tailwind CSS v3.4.17 built via `node node_modules/tailwindcss/lib/cli.js`
 - The `styles.css` file uses v3 directives (`@tailwind base/components/utilities`), NOT v4 `@import "tailwindcss"` syntax
 - Chart.js is used for data visualization (line chart for progress, doughnut for time distribution)
 - IndexedDB for client-side storage with three stores: `tasks`, `timeTracking`, `settings`

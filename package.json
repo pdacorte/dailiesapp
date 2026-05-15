@@ -1,7 +1,8 @@
 {
   "scripts": {
-    "dev": "npx @tailwindcss/cli -i styles.css -o output.css --watch",
-    "build": "npx @tailwindcss/cli -i styles.css -o minified.css --minify"
+    "dev": "node node_modules/tailwindcss/lib/cli.js -i styles.css -o output.css --watch",
+    "build": "node node_modules/tailwindcss/lib/cli.js -i styles.css -o minified.css --minify",
+    "test": "node tests/routines-unit.test.js"
   },
   "name": "dailiesapp",
   "version": "1.0.0",
