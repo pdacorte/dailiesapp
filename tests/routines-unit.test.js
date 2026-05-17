@@ -142,13 +142,87 @@ function createFakeTaskDatabase(existingTasks, nextId) {
   }
 }
 
+function createFakeCompletionDatabase(existingTasks) {
+  const tasks = existingTasks.map((task) => ({ ...task }))
+  const updates = []
+  let nextId = Math.max(...tasks.map((task) => task.id || 0), 0) + 1
+
+  return {
+    getUpdates: () => updates,
+    transaction(stores, mode) {
+      assert.strictEqual(stores.length, 1)
+      assert.strictEqual(stores[0], "tasks")
+
+      if (mode === "readonly") {
+        return {
+          objectStore: () => ({
+            getAll: () => createSuccessRequest(tasks),
+          }),
+        }
+      }
+
+      assert.strictEqual(mode, "readwrite")
+
+      const writeTransaction = {}
+      const completeTransaction = () => {
+        if (typeof writeTransaction.complete === "function") {
+          writeTransaction.complete({ target: writeTransaction })
+        }
+      }
+
+      Object.defineProperty(writeTransaction, "oncomplete", {
+        set(handler) {
+          writeTransaction.complete = handler
+        },
+      })
+      Object.defineProperty(writeTransaction, "onerror", { set() {} })
+
+      return Object.assign(writeTransaction, {
+        objectStore: () => ({
+          put: (task) => createSuccessRequest(task.id, () => {
+            updates.push({ ...task })
+            setTimeout(completeTransaction, 0)
+          }),
+          add: (task) => {
+            const id = nextId++
+            tasks.push({ ...task, id })
+            return createSuccessRequest(id, () => setTimeout(completeTransaction, 0))
+          },
+        }),
+      })
+    },
+  }
+}
+
 async function main() {
   const appPath = path.join(__dirname, "..", "app.js")
   const appSource = fs.readFileSync(appPath, "utf8")
+  const customCssPath = path.join(__dirname, "..", "custom.css")
+  const customCss = fs.readFileSync(customCssPath, "utf8")
   const sandbox = createSandbox()
 
   vm.runInContext(appSource, sandbox, { filename: "app.js" })
   const normalize = (value) => JSON.parse(JSON.stringify(value))
+  const extractKeyframes = (name) => {
+    const marker = `@keyframes ${name}`
+    const start = customCss.indexOf(marker)
+    assert.notStrictEqual(start, -1, `${name} keyframes should exist`)
+    const next = customCss.indexOf("@keyframes", start + marker.length)
+    return customCss.slice(start, next === -1 ? customCss.length : next)
+  }
+
+  ;[
+    "taskComplete",
+    "taskCompleteDark",
+    "subtaskComplete",
+    "subtaskCompleteDark",
+  ].forEach((keyframeName) => {
+    const keyframes = extractKeyframes(keyframeName)
+    assert.ok(
+      !/transform\s*:/.test(keyframes),
+      `${keyframeName} should not transform the scroll-container item`,
+    )
+  })
 
   assert.strictEqual(typeof sandbox.getDefaultWeeklyRoutines, "function")
   assert.strictEqual(typeof sandbox.normalizeWeeklyRoutines, "function")
@@ -329,6 +403,107 @@ async function main() {
     sortOrder: 3,
   })
   sandbox.updateDisplayAfterTaskAdd = realUpdateDisplayAfterTaskAdd
+
+  const fakeCompletionDatabase = createFakeCompletionDatabase([
+    {
+      id: 10,
+      title: "Seamless completion",
+      type: "Goal",
+      status: false,
+      startDate: "2026-05-18",
+      endDate: null,
+      sortOrder: 0,
+    },
+  ])
+  const completedTaskElement = {
+    addEventListener: () => {},
+    classList: {
+      add: () => {},
+      contains: () => false,
+      remove: () => {},
+    },
+    dataset: { incompleteSubtasks: "0", taskId: "10" },
+    getBoundingClientRect: () => ({ left: 0, top: 0, width: 100, height: 48 }),
+    querySelector: () => null,
+    remove: () => {},
+  }
+  const completedItems = []
+  const completedList = {
+    children: completedItems,
+    appendChild(element) {
+      element.parentNode = this
+      completedItems.push(element)
+      return element
+    },
+    insertBefore(element, beforeElement) {
+      element.parentNode = this
+      const index = completedItems.indexOf(beforeElement)
+      if (index === -1) {
+        completedItems.push(element)
+      } else {
+        completedItems.splice(index, 0, element)
+      }
+      return element
+    },
+    removeChild(element) {
+      const index = completedItems.indexOf(element)
+      if (index !== -1) completedItems.splice(index, 1)
+      element.parentNode = null
+      return element
+    },
+    querySelector: () => null,
+    get firstChild() { return completedItems[0] || null },
+    get lastElementChild() { return completedItems[completedItems.length - 1] || null },
+  }
+  const todayCount = { textContent: "0 tasks completed" }
+  let broadCompletionRefreshCount = 0
+  sandbox.__fakeCompletionDatabase = fakeCompletionDatabase
+  vm.runInContext("db = __fakeCompletionDatabase", sandbox)
+  sandbox.setTimeout = (handler) => {
+    handler()
+    return 0
+  }
+  sandbox.document.querySelector = (selector) => {
+    return selector === '[data-task-id="10"]' ? completedTaskElement : null
+  }
+  sandbox.document.createElement = () => ({
+    className: "",
+    dataset: {},
+    innerHTML: "",
+    parentNode: null,
+    remove() {
+      if (this.parentNode && typeof this.parentNode.removeChild === "function") {
+        this.parentNode.removeChild(this)
+      }
+    },
+    style: {},
+  })
+  sandbox.document.getElementById = (id) => ({
+    "completed-tasks": completedList,
+    "today-completed-count": todayCount,
+  })[id] || null
+  sandbox.document.body = { appendChild: () => {} }
+  sandbox.updateDisplay = () => { broadCompletionRefreshCount += 1 }
+  sandbox.updateDisplayAfterTaskChange = () => { broadCompletionRefreshCount += 1 }
+  sandbox.updateOngoingTasks = () => { broadCompletionRefreshCount += 1 }
+
+  await sandbox.completeTask(10)
+
+  assert.strictEqual(broadCompletionRefreshCount, 0)
+  assert.deepStrictEqual(normalize(fakeCompletionDatabase.getUpdates()), [
+    {
+      id: 10,
+      title: "Seamless completion",
+      type: "Goal",
+      status: true,
+      startDate: "2026-05-18",
+      endDate: "2026-05-18",
+      completedAt: sandbox.Date.now(),
+      sortOrder: 0,
+    },
+  ])
+  assert.strictEqual(completedItems.length, 1)
+  assert.strictEqual(todayCount.textContent, "1 tasks completed")
 
   const emptyState = {
     removed: false,

@@ -21,6 +21,7 @@ let currentView = "dashboard"
 let isCompletedTasksCollapsed = false
 let dailyAlertInterval = null
 let dashboardHeightSyncFrame = null
+const taskCompletionsInFlight = new Set()
 
 const DAILY_ALERT_DEFAULTS = {
   enabled: false,
@@ -1082,100 +1083,483 @@ function addSubtask(event, parentId) {
   }
 }
 
-// Mark a task as complete and create next day's task if Non-Negotiable
-function completeTask(taskId) {
-  const numericTaskId = Number(taskId)
-  // Look up the task type first for animation branching
-  const taskElement = document.querySelector(`[data-task-id="${numericTaskId}"]`)
-  const isSubtaskElement = taskElement && taskElement.classList.contains('subtask-item')
-  const isNonNegotiable = !isSubtaskElement && taskElement && taskElement.querySelector('.task-type-badge.non-negotiable')
-  const incompleteSubtasks = Number(taskElement?.dataset.incompleteSubtasks || 0)
+function idbRequestToPromise(request) {
+  return new Promise((resolve, reject) => {
+    request.onsuccess = (event) => resolve(event.target.result)
+    request.onerror = (event) => reject(event.target.error)
+  })
+}
 
-  if (!isSubtaskElement && incompleteSubtasks > 0) {
-    const checkbox = taskElement.querySelector('.task-parent-row .confirmation-button')
-    if (checkbox) checkbox.checked = false
+function idbTransactionDone(transaction) {
+  return new Promise((resolve, reject) => {
+    transaction.oncomplete = () => resolve()
+    transaction.onerror = (event) => reject(event.target.error)
+    transaction.onabort = (event) => reject(event.target.error)
+  })
+}
+
+async function getTaskCompletionContext(taskId) {
+  const transaction = db.transaction(["tasks"], "readonly")
+  const taskStore = transaction.objectStore("tasks")
+  const allTasks = await idbRequestToPromise(taskStore.getAll())
+  const task = allTasks.find((item) => item.id === taskId)
+  return { task, allTasks }
+}
+
+function buildTaskCompletionMutation(task, allTasks) {
+  const isSubtask = hasParentTask(task)
+  const parentTask = isSubtask ? allTasks.find((item) => item.id === task.parentId) : null
+  const subtasks = isSubtask ? [] : getSubtasksForParent(allTasks, task.id)
+  const incompleteSubtasks = subtasks.filter((subtask) => !subtask.status)
+  const today = getTodayDate()
+  const completedTask = {
+    ...task,
+    status: true,
+    endDate: today,
+    completedAt: Date.now(),
+  }
+  const isNonNegotiable = task.type === "Non-Negotiable" && !isSubtask
+  const activeTopLevelTasks = getTopLevelTasks(allTasks)
+    .filter((item) => !item.status && item.id !== task.id)
+  const maxSortOrder = activeTopLevelTasks.length > 0
+    ? Math.max(...activeTopLevelTasks.map((item) => item.sortOrder || 0))
+    : -1
+  const successorTask = isNonNegotiable
+    ? {
+        title: task.title,
+        type: "Non-Negotiable",
+        status: false,
+        startDate: today,
+        endDate: null,
+        sortOrder: maxSortOrder + 1,
+      }
+    : null
+
+  return {
+    id: task.id,
+    task,
+    completedTask,
+    allTasks,
+    isSubtask,
+    parentTask,
+    subtasks,
+    incompleteSubtasks,
+    isNonNegotiable,
+    successorTask,
+  }
+}
+
+function getCompletionCheckbox(taskElement, isSubtask) {
+  if (!taskElement) return null
+  const selector = isSubtask ? ".confirmation-button" : ".task-parent-row .confirmation-button"
+  return taskElement.querySelector(selector)
+}
+
+function setCompletionCheckboxState(checkbox, checked, disabled) {
+  if (!checkbox) return
+  checkbox.checked = checked
+  checkbox.disabled = disabled
+}
+
+function setCompletionAnimationHeight(element) {
+  if (!element || !element.style || typeof element.style.setProperty !== "function") return
+
+  const rect = typeof element.getBoundingClientRect === "function"
+    ? element.getBoundingClientRect()
+    : null
+  const height = Math.ceil((rect && rect.height) || element.scrollHeight || 0)
+  if (height > 0) {
+    element.style.setProperty("--completion-height", `${height}px`)
+  }
+}
+
+function clearCompletionAnimationHeight(element) {
+  if (!element || !element.style || typeof element.style.removeProperty !== "function") return
+
+  element.style.removeProperty("--completion-height")
+}
+
+function removeElementWithCompletionAnimation(element, className, afterRemove) {
+  if (!element) return null
+  let removed = false
+  const finishRemoval = () => {
+    if (removed) return
+    removed = true
+    if (element.parentNode) {
+      element.remove()
+    }
+    if (typeof afterRemove === "function") {
+      afterRemove()
+    }
+  }
+
+  setCompletionAnimationHeight(element)
+  element.classList.add(className)
+  element.addEventListener("animationend", finishRemoval, { once: true })
+  const fallbackTimer = setTimeout(finishRemoval, className === "subtask-completing" ? 450 : 650)
+  return {
+    cancel() {
+      removed = true
+      clearTimeout(fallbackTimer)
+    },
+  }
+}
+
+function addOngoingEmptyStateIfNeeded(patch) {
+  const taskList = document.getElementById("ongoing-tasks")
+  if (!taskList || taskList.children.length > 0) return
+
+  const emptyState = document.createElement("div")
+  emptyState.className = "empty-state"
+  emptyState.innerHTML = '<span class="material-symbols-outlined">inventory_2</span>No ongoing tasks. Add one below!'
+  taskList.appendChild(emptyState)
+  patch.addedOngoingEmptyState = emptyState
+}
+
+function patchParentSubtaskProgress(mutation, patch) {
+  if (!mutation.isSubtask || !mutation.parentTask) return
+
+  const parentElement = document.querySelector(`[data-task-id="${mutation.parentTask.id}"]`)
+  if (!parentElement) return
+
+  const subtasks = getSubtasksForParent(mutation.allTasks, mutation.parentTask.id)
+  const incompleteBefore = subtasks.filter((subtask) => !subtask.status).length
+  const incompleteAfter = Math.max(incompleteBefore - 1, 0)
+  const completedAfter = subtasks.length - incompleteAfter
+  const progressElement = parentElement.querySelector(".subtask-progress")
+  const subtaskList = parentElement.querySelector(".subtask-list")
+
+  patch.parentProgress = {
+    element: parentElement,
+    incompleteSubtasks: parentElement.dataset.incompleteSubtasks,
+    progressText: progressElement ? progressElement.textContent : null,
+    subtaskListHTML: subtaskList ? subtaskList.innerHTML : null,
+  }
+
+  parentElement.dataset.incompleteSubtasks = String(incompleteAfter)
+  if (progressElement) {
+    progressElement.textContent = `${completedAfter}/${subtasks.length} done`
+  }
+  if (subtaskList && incompleteAfter === 0) {
+    subtaskList.innerHTML = '<div class="subtask-empty">All subtasks complete</div>'
+  }
+}
+
+function createCompletedTaskElement(task, parentTask = null, index = 0, animate = true) {
+  const isSubtask = hasParentTask(task)
+  const titleHTML = isSubtask && parentTask
+    ? `<span class="completed-parent-title">${escapeHTML(parentTask.title)}</span><span class="completed-separator">/</span><span>${escapeHTML(task.title)}</span>`
+    : `<span>${escapeHTML(task.title)}</span>`
+  const taskElement = document.createElement("div")
+  taskElement.className = animate ? "completed-item stagger-" + Math.min(index + 1, 8) : "completed-item"
+  taskElement.dataset.completedTaskId = task.id
+  taskElement.innerHTML = `
+                <div class="completed-title-wrap">
+                    <span class="material-symbols-outlined text-emerald-400 text-base">check_circle</span>
+                    <span class="completed-title-text">${titleHTML}</span>
+                    ${isSubtask ? '<span class="completed-subtask-badge">Subtask</span>' : ''}
+                </div>
+                <span class="text-xs font-medium text-zinc-400 dark:text-zinc-500">${task.endDate}</span>
+            `
+  return taskElement
+}
+
+function prependCompletedTaskElement(task, parentTask, patch) {
+  const completedList = document.getElementById("completed-tasks")
+  if (!completedList) return null
+
+  const emptyState = completedList.querySelector(".empty-state")
+  if (emptyState) {
+    patch.completedEmptyStateHTML = emptyState.outerHTML || emptyState.innerHTML
+    emptyState.remove()
+  }
+
+  const taskElement = createCompletedTaskElement(task, parentTask, 0, true)
+  if (completedList.firstChild) {
+    completedList.insertBefore(taskElement, completedList.firstChild)
+  } else {
+    completedList.appendChild(taskElement)
+  }
+
+  const heading = document.getElementById("completed-tasks-heading")
+  if (heading) {
+    patch.completedHeadingText = heading.textContent
+    heading.textContent = isCompletedTasksCollapsed
+      ? "Latest Completion"
+      : currentView === "tasks" ? "All Completed Tasks" : "Recent Completions"
+  }
+
+  const limit = isCompletedTasksCollapsed ? 1 : currentView !== "tasks" ? 5 : null
+  if (limit) {
+    patch.trimmedCompletedElements = []
+    while (completedList.children.length > limit) {
+      const element = completedList.lastElementChild
+      patch.trimmedCompletedElements.unshift(element)
+      completedList.removeChild(element)
+    }
+  }
+
+  return taskElement
+}
+
+function patchTodayCompletionCount(patch) {
+  const countElement = document.getElementById("today-completed-count")
+  if (!countElement) return
+
+  patch.todayCountText = countElement.textContent
+  const currentCount = Number.parseInt(countElement.textContent, 10)
+  const nextCount = Number.isNaN(currentCount) ? 1 : currentCount + 1
+  countElement.textContent = `${nextCount} tasks completed`
+}
+
+function patchSevenDayOverviewToday(patch) {
+  const todayCell = document.querySelector(`[data-overview-date="${getTodayDate()}"]`)
+  const countElement = todayCell ? todayCell.querySelector(".day-count") : null
+  if (!countElement) return
+
+  patch.todayOverview = {
+    element: countElement,
+    text: countElement.textContent,
+    className: countElement.className,
+  }
+
+  const currentCount = Number.parseInt(countElement.textContent, 10)
+  const nextCount = Number.isNaN(currentCount) ? 1 : currentCount + 1
+  countElement.textContent = String(nextCount)
+  countElement.classList.remove("zero")
+  countElement.classList.add("positive")
+}
+
+function patchProgressChartToday(patch) {
+  if (!currentChart || !currentChart.data || !currentChart.data.datasets) return
+
+  const actualDataset = currentChart.data.datasets[1]
+  if (!actualDataset || !Array.isArray(actualDataset.data)) return
+
+  const labels = currentChart.data.labels || []
+  let todayIndex = labels.indexOf(getTodayDate())
+  if (todayIndex === -1) {
+    todayIndex = actualDataset.data.length - 1
+  }
+  if (todayIndex < 0) return
+
+  patch.chartActualData = [...actualDataset.data]
+  for (let index = todayIndex; index < actualDataset.data.length; index++) {
+    actualDataset.data[index] = Number(actualDataset.data[index] || 0) + 1
+  }
+  currentChart.update("none")
+}
+
+function applyOptimisticTaskCompletion(mutation) {
+  const taskElement = document.querySelector(`[data-task-id="${mutation.id}"]`)
+  const checkbox = getCompletionCheckbox(taskElement, mutation.isSubtask)
+  const patch = {
+    taskElement,
+    checkbox,
+    originalParent: taskElement ? taskElement.parentNode : null,
+    originalNextSibling: taskElement ? taskElement.nextSibling : null,
+    originalClassName: taskElement ? taskElement.className : null,
+  }
+
+  setCompletionCheckboxState(checkbox, true, true)
+
+  if (taskElement) {
+    launchConfetti(taskElement)
+    if (mutation.isNonNegotiable) {
+      taskElement.classList.add("task-celebrating")
+    } else {
+      const className = mutation.isSubtask ? "subtask-completing" : "task-completing"
+      patch.removal = removeElementWithCompletionAnimation(taskElement, className, () => {
+        if (mutation.isSubtask) {
+          patchParentSubtaskProgress(mutation, patch)
+        } else {
+          addOngoingEmptyStateIfNeeded(patch)
+        }
+        syncDashboardTaskCardHeight()
+      })
+    }
+  }
+
+  patch.completedElement = prependCompletedTaskElement(mutation.completedTask, mutation.parentTask, patch)
+  patchTodayCompletionCount(patch)
+  patchSevenDayOverviewToday(patch)
+  patchProgressChartToday(patch)
+  syncDashboardTaskCardHeight()
+
+  return patch
+}
+
+function restoreCompletedTasksList(patch) {
+  const completedList = document.getElementById("completed-tasks")
+  if (!completedList) return
+
+  if (patch.completedElement && patch.completedElement.parentNode) {
+    patch.completedElement.remove()
+  }
+  if (patch.trimmedCompletedElements) {
+    patch.trimmedCompletedElements.forEach((element) => completedList.appendChild(element))
+  }
+  if (patch.completedEmptyStateHTML && completedList.children.length === 0) {
+    completedList.innerHTML = patch.completedEmptyStateHTML
+  }
+  const heading = document.getElementById("completed-tasks-heading")
+  if (heading && patch.completedHeadingText !== undefined) {
+    heading.textContent = patch.completedHeadingText
+  }
+}
+
+function rollbackOptimisticTaskCompletion(patch) {
+  if (!patch) return
+
+  if (patch.addedOngoingEmptyState && patch.addedOngoingEmptyState.parentNode) {
+    patch.addedOngoingEmptyState.remove()
+  }
+  if (patch.removal) {
+    patch.removal.cancel()
+  }
+  if (patch.taskElement) {
+    patch.taskElement.className = patch.originalClassName || patch.taskElement.className
+    clearCompletionAnimationHeight(patch.taskElement)
+    if (!patch.taskElement.parentNode && patch.originalParent) {
+      patch.originalParent.insertBefore(patch.taskElement, patch.originalNextSibling || null)
+    }
+  }
+  setCompletionCheckboxState(patch.checkbox, false, false)
+
+  if (patch.parentProgress) {
+    const parentElement = patch.parentProgress.element
+    parentElement.dataset.incompleteSubtasks = patch.parentProgress.incompleteSubtasks
+    const progressElement = parentElement.querySelector(".subtask-progress")
+    if (progressElement && patch.parentProgress.progressText !== null) {
+      progressElement.textContent = patch.parentProgress.progressText
+    }
+    const subtaskList = parentElement.querySelector(".subtask-list")
+    if (subtaskList && patch.parentProgress.subtaskListHTML !== null) {
+      subtaskList.innerHTML = patch.parentProgress.subtaskListHTML
+    }
+  }
+
+  restoreCompletedTasksList(patch)
+
+  const countElement = document.getElementById("today-completed-count")
+  if (countElement && patch.todayCountText !== undefined) {
+    countElement.textContent = patch.todayCountText
+  }
+  if (patch.todayOverview) {
+    patch.todayOverview.element.textContent = patch.todayOverview.text
+    patch.todayOverview.element.className = patch.todayOverview.className
+  }
+  if (currentChart && patch.chartActualData) {
+    currentChart.data.datasets[1].data = patch.chartActualData
+    currentChart.update("none")
+  }
+  syncDashboardTaskCardHeight()
+}
+
+async function persistTaskCompletion(mutation) {
+  const transaction = db.transaction(["tasks"], "readwrite")
+  const taskStore = transaction.objectStore("tasks")
+  const transactionComplete = idbTransactionDone(transaction)
+  let successorTask = null
+
+  await idbRequestToPromise(taskStore.put(mutation.completedTask))
+  if (mutation.successorTask) {
+    const successorId = await idbRequestToPromise(taskStore.add(mutation.successorTask))
+    successorTask = { ...mutation.successorTask, id: successorId }
+  }
+
+  await transactionComplete
+  return { successorTask }
+}
+
+function insertOngoingTaskElementSorted(taskElement) {
+  const taskList = document.getElementById("ongoing-tasks")
+  if (!taskList || !taskElement) return
+
+  const emptyState = taskList.querySelector(".empty-state")
+  if (emptyState) {
+    emptyState.remove()
+  }
+
+  const newSortOrder = Number(taskElement.dataset.sortOrder || 0)
+  const siblings = Array.from(taskList.querySelectorAll(".task-parent"))
+  const nextElement = siblings.find((element) => Number(element.dataset.sortOrder || 0) > newSortOrder)
+  taskList.insertBefore(taskElement, nextElement || null)
+}
+
+function replaceOngoingTaskElement(task, allTasks, taskElement) {
+  if (!task || !taskElement) return
+
+  const newTaskElement = createOngoingTaskElement(task, [...allTasks, task], 0, false)
+  if (taskElement.parentNode) {
+    taskElement.remove()
+  }
+  insertOngoingTaskElementSorted(newTaskElement)
+  syncDashboardTaskCardHeight()
+}
+
+function finalizeOptimisticTaskCompletion(mutation, patch, result) {
+  if (mutation.isNonNegotiable && result.successorTask) {
+    replaceOngoingTaskElement(result.successorTask, mutation.allTasks, patch.taskElement)
+  }
+  if (typeof updateStreak === "function") {
+    updateStreak()
+  }
+}
+
+function resetRejectedCompletionCheckbox(taskId, isSubtask = false) {
+  const taskElement = document.querySelector(`[data-task-id="${taskId}"]`)
+  const isSubtaskElement = isSubtask || Boolean(taskElement?.classList.contains("subtask-item"))
+  const checkbox = getCompletionCheckbox(taskElement, isSubtaskElement)
+  setCompletionCheckboxState(checkbox, false, false)
+}
+
+// Mark a task as complete and create next day's task if Non-Negotiable
+async function completeTask(taskId) {
+  const numericTaskId = Number(taskId)
+  if (!db || Number.isNaN(numericTaskId)) {
+    resetRejectedCompletionCheckbox(numericTaskId)
+    return
+  }
+  if (taskCompletionsInFlight.has(numericTaskId)) return
+
+  const initialTaskElement = document.querySelector(`[data-task-id="${numericTaskId}"]`)
+  const initialIsSubtask = Boolean(initialTaskElement?.classList.contains("subtask-item"))
+  const initialIncompleteSubtasks = Number(initialTaskElement?.dataset.incompleteSubtasks || 0)
+  if (!initialIsSubtask && initialIncompleteSubtasks > 0) {
+    resetRejectedCompletionCheckbox(numericTaskId)
     showNotification("Finish all subtasks before completing the parent task.", "info")
     return
   }
 
-  if (taskElement) {
-    launchConfetti(taskElement)
-    if (isNonNegotiable) {
-      // Non-negotiables: celebrate then reset (don't remove)
-      taskElement.classList.add('task-celebrating')
-      const checkbox = taskElement.querySelector('.task-parent-row .confirmation-button')
-      if (checkbox) checkbox.checked = true
-      taskElement.addEventListener('animationend', () => {
-        taskElement.classList.remove('task-celebrating')
-        if (checkbox) checkbox.checked = false
-      }, { once: true })
-    } else {
-      // Regular goals: animate out and remove
-      taskElement.classList.add(isSubtaskElement ? 'subtask-completing' : 'task-completing')
-      taskElement.addEventListener('animationend', () => {
-        taskElement.remove()
-        const taskList = document.getElementById('ongoing-tasks')
-        if (taskList && taskList.children.length === 0 && !isSubtaskElement) {
-          taskList.innerHTML = '<div class="empty-state"><span class="material-symbols-outlined">inventory_2</span>No ongoing tasks. Add one below!</div>'
-        }
-      }, { once: true })
+  taskCompletionsInFlight.add(numericTaskId)
+  let patch = null
+
+  try {
+    const { task, allTasks } = await getTaskCompletionContext(numericTaskId)
+    if (!task) {
+      resetRejectedCompletionCheckbox(numericTaskId)
+      showNotification("Task not found.", "error")
+      return
     }
+
+    const mutation = buildTaskCompletionMutation(task, allTasks)
+    if (!mutation.isSubtask && mutation.incompleteSubtasks.length > 0) {
+      resetRejectedCompletionCheckbox(numericTaskId)
+      showNotification("Finish all subtasks before completing the parent task.", "info")
+      return
+    }
+
+    patch = applyOptimisticTaskCompletion(mutation)
+    const result = await persistTaskCompletion(mutation)
+    finalizeOptimisticTaskCompletion(mutation, patch, result)
+  } catch (error) {
+    console.error("Error completing task:", error)
+    rollbackOptimisticTaskCompletion(patch)
+    showNotification("Error completing task. Please try again.", "error")
+  } finally {
+    taskCompletionsInFlight.delete(numericTaskId)
   }
-
-  // Delay DB update to let the animation play
-  setTimeout(() => {
-    const transaction = db.transaction(["tasks"], "readwrite")
-    const taskStore = transaction.objectStore("tasks")
-    let shouldRefreshOngoing = false
-
-    transaction.oncomplete = () => {
-      updateDisplayAfterTaskChange(shouldRefreshOngoing)
-    }
-
-    transaction.onerror = (event) => {
-      console.error("Error completing task:", event.target.error)
-    }
-
-    taskStore.get(numericTaskId).onsuccess = (event) => {
-      const task = event.target.result
-      if (!task) {
-        console.error("Task not found for completion, ID:", numericTaskId)
-        return
-      }
-
-      shouldRefreshOngoing = hasParentTask(task) || task.type === "Non-Negotiable"
-      task.status = true
-      const today = getTodayDate()
-      console.log('Setting endDate to:', today)
-      task.endDate = today
-      task.completedAt = Date.now()
-
-      taskStore.put(task).onsuccess = () => {
-        // If task is Non-Negotiable, create next day's task
-        if (task.type === "Non-Negotiable" && !hasParentTask(task)) {
-          // Get current max sortOrder for ongoing tasks
-          const getAllRequest = taskStore.getAll()
-          getAllRequest.onsuccess = () => {
-            const allTasks = getAllRequest.result
-            const ongoingTasks = getTopLevelTasks(allTasks).filter(t => !t.status)
-            const maxSortOrder = ongoingTasks.length > 0 
-              ? Math.max(...ongoingTasks.map(t => t.sortOrder || 0))
-              : -1
-            
-            const nextTask = {
-              title: task.title,
-              type: "Non-Negotiable",
-              status: false,
-              startDate: getTodayDate(),
-              endDate: null,
-              sortOrder: maxSortOrder + 1
-            }
-            taskStore.add(nextTask)
-          }
-        }
-      }
-    }
-  }, 500)
 }
 
 // Launch confetti particles from a task element
@@ -1389,6 +1773,7 @@ function createOngoingTaskElement(task, allTasks, index, animate = true) {
   taskElement.draggable = true
   taskElement.dataset.taskId = task.id
   taskElement.dataset.incompleteSubtasks = incompleteSubtasks.length
+  taskElement.dataset.sortOrder = task.sortOrder !== undefined ? task.sortOrder : index
   const badgeClass = task.type === 'Non-Negotiable' ? 'non-negotiable' : 'goal'
   taskElement.innerHTML = `
               <div class="task-parent-row">
@@ -1542,22 +1927,8 @@ function updateCompletedTasks() {
     }
 
     tasks.forEach((task, index) => {
-      const isSubtask = hasParentTask(task)
-      const parentTask = isSubtask ? taskById.get(task.parentId) : null
-      const titleHTML = isSubtask && parentTask
-        ? `<span class="completed-parent-title">${escapeHTML(parentTask.title)}</span><span class="completed-separator">/</span><span>${escapeHTML(task.title)}</span>`
-        : `<span>${escapeHTML(task.title)}</span>`
-      const taskElement = document.createElement("div")
-      taskElement.className = "completed-item stagger-" + Math.min(index + 1, 8)
-      taskElement.innerHTML = `
-                <div class="completed-title-wrap">
-                    <span class="material-symbols-outlined text-emerald-400 text-base">check_circle</span>
-                    <span class="completed-title-text">${titleHTML}</span>
-                    ${isSubtask ? '<span class="completed-subtask-badge">Subtask</span>' : ''}
-                </div>
-                <span class="text-xs font-medium text-zinc-400 dark:text-zinc-500">${task.endDate}</span>
-            `
-      completedList.appendChild(taskElement)
+      const parentTask = hasParentTask(task) ? taskById.get(task.parentId) : null
+      completedList.appendChild(createCompletedTaskElement(task, parentTask, index, true))
     })
 
     syncDashboardTaskCardHeight()
@@ -1761,7 +2132,7 @@ function updateLast7DaysOverview() {
       const parts = day.date.split(', ')
       const shortDate = parts[0] || day.date
       return `
-        <div class="day-cell stagger-${i + 1}">
+        <div class="day-cell stagger-${i + 1}" data-overview-date="${dates[i]}">
           <span class="day-label">${shortDate}</span>
           <span class="day-count ${countClass}">${day.count}</span>
         </div>
