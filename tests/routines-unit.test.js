@@ -97,6 +97,126 @@ function createSuccessRequest(result, afterSuccess = () => {}) {
   return request
 }
 
+function createTestElement(tagName = "div") {
+  const element = {
+    tagName: tagName.toUpperCase(),
+    id: "",
+    name: "",
+    className: "",
+    dataset: {},
+    children: [],
+    innerHTML: "",
+    textContent: "",
+    value: "",
+    parentNode: null,
+    classList: {
+      add(...classNames) {
+        const names = new Set(element.className.split(/\s+/).filter(Boolean))
+        classNames.forEach((className) => names.add(className))
+        element.className = Array.from(names).join(" ")
+      },
+      remove(...classNames) {
+        const removeNames = new Set(classNames)
+        element.className = element.className
+          .split(/\s+/)
+          .filter((className) => className && !removeNames.has(className))
+          .join(" ")
+      },
+      contains(className) {
+        return element.className.split(/\s+/).includes(className)
+      },
+      toggle(className) {
+        if (this.contains(className)) {
+          this.remove(className)
+          return false
+        }
+        this.add(className)
+        return true
+      },
+    },
+    appendChild(child) {
+      child.parentNode = this
+      this.children.push(child)
+      return child
+    },
+    insertBefore(child, beforeElement) {
+      child.parentNode = this
+      const existingIndex = this.children.indexOf(child)
+      if (existingIndex !== -1) this.children.splice(existingIndex, 1)
+      const index = this.children.indexOf(beforeElement)
+      if (index === -1) {
+        this.children.push(child)
+      } else {
+        this.children.splice(index, 0, child)
+      }
+      return child
+    },
+    removeChild(child) {
+      const index = this.children.indexOf(child)
+      if (index !== -1) this.children.splice(index, 1)
+      child.parentNode = null
+      return child
+    },
+    remove() {
+      if (this.parentNode && typeof this.parentNode.removeChild === "function") {
+        this.parentNode.removeChild(this)
+      }
+    },
+    addEventListener() {},
+    querySelector(selector) {
+      return findTestElement(this, selector)
+    },
+    querySelectorAll(selector) {
+      return findAllTestElements(this, selector)
+    },
+    get firstChild() {
+      return this.children[0] || null
+    },
+    get firstElementChild() {
+      return this.children[0] || null
+    },
+  }
+
+  return element
+}
+
+function matchesTestSelector(element, selector) {
+  if (selector.startsWith(".")) {
+    return element.className.split(/\s+/).includes(selector.slice(1))
+  }
+
+  if (selector.startsWith("#")) {
+    return element.id === selector.slice(1)
+  }
+
+  const taskIdMatch = selector.match(/^\[data-task-id="(.+)"\]$/)
+  if (taskIdMatch) {
+    return String(element.dataset.taskId) === taskIdMatch[1]
+  }
+
+  const namedInputMatch = selector.match(/^input\[name="(.+)"\]$/)
+  if (namedInputMatch) {
+    return element.tagName === "INPUT" && element.name === namedInputMatch[1]
+  }
+
+  return false
+}
+
+function findTestElement(root, selector) {
+  return findAllTestElements(root, selector)[0] || null
+}
+
+function findAllTestElements(root, selector) {
+  const matches = []
+  const visit = (element) => {
+    if (matchesTestSelector(element, selector)) matches.push(element)
+    element.children.forEach(visit)
+  }
+
+  root.children.forEach(visit)
+  return matches
+}
+
 function createFakeTaskDatabase(existingTasks, nextId) {
   let addedTask = null
 
@@ -403,6 +523,100 @@ async function main() {
     sortOrder: 3,
   })
   sandbox.updateDisplayAfterTaskAdd = realUpdateDisplayAfterTaskAdd
+
+  const fakeSubtaskDatabase = createFakeTaskDatabase([
+    {
+      id: 30,
+      title: "Parent task",
+      type: "Goal",
+      status: false,
+      startDate: "2026-05-18",
+      endDate: null,
+      sortOrder: 0,
+    },
+  ], 31)
+  const parentElement = createTestElement("div")
+  parentElement.className = "task-item task-parent"
+  parentElement.dataset.taskId = "30"
+  parentElement.dataset.incompleteSubtasks = "0"
+
+  const parentRow = createTestElement("div")
+  parentRow.className = "task-parent-row"
+  const metaActions = createTestElement("div")
+  metaActions.className = "task-meta-actions"
+  const taskTypeBadge = createTestElement("span")
+  taskTypeBadge.className = "task-type-badge goal"
+  metaActions.appendChild(taskTypeBadge)
+  parentRow.appendChild(metaActions)
+  parentElement.appendChild(parentRow)
+
+  const subtaskForm = createTestElement("form")
+  subtaskForm.id = "subtask-form-30"
+  subtaskForm.className = "subtask-form"
+  const subtaskInput = createTestElement("input")
+  subtaskInput.name = "subtask-title"
+  subtaskInput.value = "  <Draft & Check>  "
+  subtaskForm.appendChild(subtaskInput)
+  parentElement.appendChild(subtaskForm)
+
+  let subtaskPrevented = false
+  let subtaskStopped = false
+  let subtaskRefreshCount = 0
+  let subtaskHeightSyncCount = 0
+  let parentCompletionGuardMessage = null
+
+  sandbox.__fakeSubtaskDatabase = fakeSubtaskDatabase
+  vm.runInContext("db = __fakeSubtaskDatabase", sandbox)
+  sandbox.document.createElement = createTestElement
+  sandbox.document.querySelector = (selector) => {
+    if (selector === '[data-task-id="30"]') return parentElement
+    return parentElement.querySelector(selector)
+  }
+  sandbox.updateOngoingTasks = () => { subtaskRefreshCount += 1 }
+  sandbox.syncDashboardTaskCardHeight = () => { subtaskHeightSyncCount += 1 }
+  sandbox.showNotification = (message) => { parentCompletionGuardMessage = message }
+
+  sandbox.addSubtask({
+    target: subtaskForm,
+    preventDefault: () => { subtaskPrevented = true },
+    stopPropagation: () => { subtaskStopped = true },
+  }, 30)
+
+  assert.strictEqual(subtaskPrevented, true)
+  assert.strictEqual(subtaskStopped, true)
+  assert.deepStrictEqual(normalize(fakeSubtaskDatabase.getAddedTask()), {
+    id: 31,
+    title: "<Draft & Check>",
+    type: "Goal",
+    status: false,
+    startDate: "2026-05-18",
+    endDate: null,
+    parentId: 30,
+    subtaskOrder: 0,
+  })
+  assert.strictEqual(subtaskInput.value, "")
+  assert.strictEqual(subtaskForm.classList.contains("hidden"), true)
+  assert.strictEqual(subtaskRefreshCount, 0)
+  assert.strictEqual(subtaskHeightSyncCount, 1)
+
+  const createdSubtaskList = parentElement.querySelector(".subtask-list")
+  assert.ok(createdSubtaskList)
+  assert.ok(parentElement.children.indexOf(createdSubtaskList) < parentElement.children.indexOf(subtaskForm))
+  const createdSubtaskItems = createdSubtaskList.querySelectorAll(".subtask-item")
+  assert.strictEqual(createdSubtaskItems.length, 1)
+  assert.strictEqual(String(createdSubtaskItems[0].dataset.taskId), "31")
+  assert.ok(createdSubtaskItems[0].innerHTML.includes("&lt;Draft &amp; Check&gt;"))
+  assert.ok(createdSubtaskItems[0].innerHTML.includes("completeTask(31)"))
+  assert.ok(createdSubtaskItems[0].innerHTML.includes("deleteTask(31)"))
+  assert.strictEqual(parentElement.dataset.incompleteSubtasks, "1")
+
+  const createdSubtaskProgress = parentElement.querySelector(".subtask-progress")
+  assert.ok(createdSubtaskProgress)
+  assert.strictEqual(createdSubtaskProgress.textContent, "0/1 done")
+  assert.ok(metaActions.children.indexOf(createdSubtaskProgress) < metaActions.children.indexOf(taskTypeBadge))
+
+  await sandbox.completeTask(30)
+  assert.strictEqual(parentCompletionGuardMessage, "Finish all subtasks before completing the parent task.")
 
   const fakeCompletionDatabase = createFakeCompletionDatabase([
     {

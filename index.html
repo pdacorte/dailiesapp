@@ -248,21 +248,34 @@
                                 <span class="material-symbols-outlined text-indigo-500 text-xl">timer</span>
                             </div>
 
-                            <!-- Timer Controls -->
-                            <div class="space-y-4 mb-6">
-                                <input type="text" id="timer-task-input" placeholder="What are you working on?"
-                                       class="input-field w-full">
-                                <div class="flex items-center gap-4">
-                                    <button id="timer-control-btn" onclick="toggleTimer()"
-                                            class="btn-success h-10 px-6 flex items-center gap-2">
-                                        <span class="material-symbols-outlined text-lg">play_arrow</span>
-                                        Start
+                             <!-- Timer Controls -->
+                             <div class="space-y-4 mb-6">
+                                 <input type="text" id="timer-task-input" placeholder="What are you working on?"
+                                        class="input-field w-full">
+                                <div class="pomodoro-controls" role="group" aria-label="Pomodoro timer controls">
+                                    <button id="timer-control-btn" onclick="startPomodoroMode('work')"
+                                            class="pomodoro-btn pomodoro-btn-work" aria-pressed="false">
+                                        <span class="material-symbols-outlined text-lg">timer</span>
+                                        Timer
                                     </button>
-                                    <div id="timer-display" class="timer-display">
-                                        00:00:00
-                                    </div>
+                                    <button id="short-break-btn" onclick="startPomodoroMode('shortBreak')"
+                                            class="pomodoro-btn pomodoro-btn-short" aria-pressed="false">
+                                        <span class="material-symbols-outlined text-lg">coffee</span>
+                                        Short Break
+                                    </button>
+                                    <button id="long-break-btn" onclick="startPomodoroMode('longBreak')"
+                                            class="pomodoro-btn pomodoro-btn-long" aria-pressed="false">
+                                        <span class="material-symbols-outlined text-lg">self_improvement</span>
+                                        Long Break
+                                    </button>
                                 </div>
-                            </div>
+                                <div class="pomodoro-readout">
+                                     <div id="timer-display" class="timer-display">
+                                        25:00
+                                     </div>
+                                    <p id="timer-session-status" class="pomodoro-status">Timer sessions count toward task totals. Breaks do not.</p>
+                                 </div>
+                             </div>
 
                             <!-- Task Counters -->
                             <div class="border-t border-zinc-100 dark:border-zinc-800 pt-5 mb-5">

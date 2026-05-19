@@ -13,8 +13,48 @@ let draggedTaskId = null
 // Time tracker variables
 let timerInterval = null
 let timerStartTime = null
+let timerTargetTime = null
 let isTimerRunning = false
 let currentTaskName = ""
+let currentTimerMode = null
+let currentTimerDurationSeconds = 0
+let pomodoroAudioContext = null
+
+const POMODORO_DURATIONS = {
+  work: 25 * 60,
+  shortBreak: 5 * 60,
+  longBreak: 15 * 60,
+}
+
+const POMODORO_MODE_LABELS = {
+  work: "Timer",
+  shortBreak: "Short Break",
+  longBreak: "Long Break",
+}
+
+const POMODORO_BUTTON_CONFIG = {
+  work: {
+    id: "timer-control-btn",
+    icon: "timer",
+    activeIcon: "stop_circle",
+    label: "Timer",
+    activeLabel: "Stop Timer",
+  },
+  shortBreak: {
+    id: "short-break-btn",
+    icon: "coffee",
+    activeIcon: "stop_circle",
+    label: "Short Break",
+    activeLabel: "Stop Break",
+  },
+  longBreak: {
+    id: "long-break-btn",
+    icon: "self_improvement",
+    activeIcon: "stop_circle",
+    label: "Long Break",
+    activeLabel: "Stop Break",
+  },
+}
 
 // Current view state
 let currentView = "dashboard"
@@ -504,6 +544,8 @@ function setupEventListeners() {
   });
 
   initializeCompletedTasksCollapse()
+  resetTimerDisplay("work")
+  updateTimerControls()
 
   const saveAlertButton = document.getElementById("save-alert-settings")
   if (saveAlertButton) {
@@ -1007,6 +1049,79 @@ function toggleSubtaskForm(parentId) {
   }
 }
 
+function createSubtaskItemElement(subtask) {
+  const subtaskElement = document.createElement("div")
+  subtaskElement.className = "subtask-item"
+  subtaskElement.dataset.taskId = subtask.id
+  subtaskElement.innerHTML = `
+            <input type="checkbox" onchange="completeTask(${subtask.id})" class="confirmation-button" aria-label="Complete subtask ${escapeHTML(subtask.title)}">
+            <span class="subtask-title">${escapeHTML(subtask.title)}</span>
+            <button type="button" onclick="deleteTask(${subtask.id})" class="task-delete-btn" title="Delete subtask">
+              <span class="material-symbols-outlined text-lg">close</span>
+            </button>
+          `
+  return subtaskElement
+}
+
+function getOrCreateSubtaskList(parentElement, form) {
+  let subtaskList = parentElement.querySelector(".subtask-list")
+  if (subtaskList) return subtaskList
+
+  subtaskList = document.createElement("div")
+  subtaskList.className = "subtask-list"
+  if (form && form.parentNode === parentElement && typeof parentElement.insertBefore === "function") {
+    parentElement.insertBefore(subtaskList, form)
+  } else if (typeof parentElement.appendChild === "function") {
+    parentElement.appendChild(subtaskList)
+  } else {
+    return null
+  }
+
+  return subtaskList
+}
+
+function getOrCreateSubtaskProgress(parentElement) {
+  let progressElement = parentElement.querySelector(".subtask-progress")
+  if (progressElement) return progressElement
+
+  const metaActions = parentElement.querySelector(".task-meta-actions")
+  if (!metaActions || typeof metaActions.insertBefore !== "function") return null
+
+  progressElement = document.createElement("span")
+  progressElement.className = "subtask-progress"
+  const taskTypeBadge = metaActions.querySelector(".task-type-badge")
+  metaActions.insertBefore(progressElement, taskTypeBadge || metaActions.firstChild || null)
+  return progressElement
+}
+
+function appendSubtaskToParentTask(parentId, subtask, allTasks, form) {
+  const parentElement = document.querySelector(`[data-task-id="${parentId}"]`)
+  if (!parentElement || !subtask || subtask.id === undefined || subtask.id === null) return false
+
+  const parentForm = form || parentElement.querySelector(`#subtask-form-${parentId}`)
+  const subtaskList = getOrCreateSubtaskList(parentElement, parentForm)
+  const progressElement = getOrCreateSubtaskProgress(parentElement)
+  if (!subtaskList || !progressElement) return false
+
+  if (subtaskList.querySelector(`[data-task-id="${subtask.id}"]`)) return true
+
+  const emptyMarker = subtaskList.querySelector(".subtask-empty")
+  if (emptyMarker) emptyMarker.remove()
+
+  subtaskList.appendChild(createSubtaskItemElement(subtask))
+
+  const existingSubtasks = getSubtasksForParent(allTasks, parentId)
+  const completedSubtasks = existingSubtasks.filter((item) => item.status).length
+  const incompleteSubtasks = existingSubtasks.length - completedSubtasks
+  const currentIncomplete = Number.parseInt(parentElement.dataset.incompleteSubtasks, 10)
+  parentElement.dataset.incompleteSubtasks = String(
+    Number.isNaN(currentIncomplete) ? incompleteSubtasks + 1 : currentIncomplete + 1,
+  )
+  progressElement.textContent = `${completedSubtasks}/${existingSubtasks.length + 1} done`
+  syncDashboardTaskCardHeight()
+  return true
+}
+
 function addSubtask(event, parentId) {
   event.preventDefault()
   event.stopPropagation()
@@ -1058,7 +1173,8 @@ function addSubtask(event, parentId) {
     const writeTaskStore = writeTransaction.objectStore("tasks")
     const addRequest = writeTaskStore.add(subtask)
 
-    addRequest.onsuccess = () => {
+    addRequest.onsuccess = (requestEvent) => {
+      subtask.id = requestEvent.target.result
       input.value = ""
       form.classList.add("hidden")
     }
@@ -1069,7 +1185,15 @@ function addSubtask(event, parentId) {
     }
 
     writeTransaction.oncomplete = () => {
-      updateOngoingTasks(false)
+      try {
+        if (!appendSubtaskToParentTask(numericParentId, subtask, allTasks, form)) {
+          console.error("Could not patch subtask into parent task; refreshing ongoing tasks.")
+          updateOngoingTasks(false)
+        }
+      } catch (error) {
+        console.error("Error patching added subtask:", error)
+        updateOngoingTasks(false)
+      }
     }
 
     writeTransaction.onerror = (event) => {
@@ -2333,129 +2457,350 @@ function saveTaskOrder() {
 
 // Time Tracker Functions
 
-// Toggle timer start/stop
-function toggleTimer() {
-  const taskInput = document.getElementById("timer-task-input");
-  const taskName = taskInput.value.trim();
+function getPomodoroModeClass(mode) {
+  if (mode === "shortBreak") return "pomodoro-btn-short";
+  if (mode === "longBreak") return "pomodoro-btn-long";
+  return "pomodoro-btn-work";
+}
 
-  if (!taskName) {
-    alert("Please enter a task name");
-    return;
+function getPomodoroDurationLabel(mode) {
+  const seconds = POMODORO_DURATIONS[mode] || POMODORO_DURATIONS.work;
+  const minutes = Math.round(seconds / 60);
+  return `${minutes}m`;
+}
+
+function formatTimerDisplay(seconds) {
+  const safeSeconds = Math.max(0, Math.floor(seconds));
+  const hours = Math.floor(safeSeconds / 3600);
+  const minutes = Math.floor((safeSeconds % 3600) / 60);
+  const secs = safeSeconds % 60;
+
+  if (hours > 0) {
+    return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
   }
 
-  if (isTimerRunning) {
-    stopTimer();
-  } else {
-    startTimer(taskName);
+  return `${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+}
+
+function setTimerDisplaySeconds(seconds) {
+  const display = document.getElementById("timer-display");
+  if (display) {
+    display.textContent = formatTimerDisplay(seconds);
   }
 }
 
-// Start the timer
-function startTimer(taskName) {
-  if (isTimerRunning) {
-    return;
+function updateTimerStatus(message) {
+  const status = document.getElementById("timer-session-status");
+  if (status) {
+    status.textContent = message;
   }
-
-  currentTaskName = taskName;
-  isTimerRunning = true;
-  timerStartTime = Date.now();
-
-  const controlBtn = document.getElementById("timer-control-btn");
-  controlBtn.innerHTML = '<span class="material-symbols-outlined text-lg">stop</span> Stop';
-  controlBtn.className = "btn-danger h-10 px-6 flex items-center gap-2";
-
-  // Add running animation to timer display
-  document.getElementById("timer-display").classList.add("timer-running");
-
-  const taskInput = document.getElementById("timer-task-input");
-  taskInput.disabled = true;
-
-  // Update timer display every second
-  timerInterval = setInterval(() => {
-    updateTimerDisplay();
-  }, 1000);
-
-  updateTimerDisplay();
 }
 
-// Stop the timer and save the time
-function stopTimer() {
-  if (!isTimerRunning) {
-    return;
+function resetTimerDisplay(mode = "work") {
+  const display = document.getElementById("timer-display");
+  if (display) {
+    display.classList.remove("timer-running", "timer-break-running");
   }
 
-  const elapsedTime = Date.now() - timerStartTime;
-  const seconds = Math.floor(elapsedTime / 1000);
+  setTimerDisplaySeconds(POMODORO_DURATIONS[mode] || POMODORO_DURATIONS.work);
+  updateTimerStatus("Timer sessions count toward task totals. Breaks do not.");
+}
 
-  // Save time tracking data
-  saveTimeTracking(currentTaskName, seconds);
+function updateTimerControls() {
+  Object.entries(POMODORO_BUTTON_CONFIG).forEach(([mode, config]) => {
+    const button = document.getElementById(config.id);
+    if (!button) return;
 
-  // Reset timer state
-  isTimerRunning = false;
-  timerStartTime = null;
-  currentTaskName = "";
+    const isActive = isTimerRunning && currentTimerMode === mode;
+    const icon = isActive ? config.activeIcon : config.icon;
+    const label = isActive ? config.activeLabel : config.label;
 
+    button.className = `pomodoro-btn ${getPomodoroModeClass(mode)}${isActive ? " active" : ""}`;
+    button.setAttribute("aria-pressed", isActive.toString());
+    button.innerHTML = `<span class="material-symbols-outlined text-lg">${icon}</span>${label}`;
+  });
+
+  const taskInput = document.getElementById("timer-task-input");
+  if (taskInput) {
+    taskInput.disabled = isTimerRunning && currentTimerMode === "work";
+  }
+}
+
+function clearTimerInterval() {
   if (timerInterval) {
     clearInterval(timerInterval);
     timerInterval = null;
   }
+}
 
-  const controlBtn = document.getElementById("timer-control-btn");
-  controlBtn.innerHTML = '<span class="material-symbols-outlined text-lg">play_arrow</span> Start';
-  controlBtn.className = "btn-success h-10 px-6 flex items-center gap-2";
+function requestTimerNotificationPermission() {
+  if (!("Notification" in window) || Notification.permission !== "default") {
+    return;
+  }
 
-  // Remove running animation from timer display
-  document.getElementById("timer-display").classList.remove("timer-running");
+  const permissionRequest = Notification.requestPermission();
+  if (permissionRequest && typeof permissionRequest.catch === "function") {
+    permissionRequest.catch((error) => {
+      console.error("Timer notification permission request failed:", error);
+    });
+  }
+}
 
+function unlockPomodoroAudio() {
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) return;
+
+  try {
+    if (!pomodoroAudioContext) {
+      pomodoroAudioContext = new AudioContextClass();
+    }
+
+    if (pomodoroAudioContext.state === "suspended") {
+      pomodoroAudioContext.resume().catch((error) => {
+        console.error("Timer audio resume failed:", error);
+      });
+    }
+  } catch (error) {
+    console.error("Timer audio setup failed:", error);
+  }
+}
+
+function playTimerSuccessSound() {
+  unlockPomodoroAudio();
+  if (!pomodoroAudioContext || pomodoroAudioContext.state === "closed") return;
+
+  try {
+    const startTime = pomodoroAudioContext.currentTime + 0.03;
+    const notes = [523.25, 659.25, 783.99];
+
+    notes.forEach((frequency, index) => {
+      const oscillator = pomodoroAudioContext.createOscillator();
+      const gain = pomodoroAudioContext.createGain();
+      const noteStart = startTime + index * 0.12;
+      const noteEnd = noteStart + 0.22;
+
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(frequency, noteStart);
+      gain.gain.setValueAtTime(0.0001, noteStart);
+      gain.gain.exponentialRampToValueAtTime(0.16, noteStart + 0.03);
+      gain.gain.exponentialRampToValueAtTime(0.0001, noteEnd);
+
+      oscillator.connect(gain);
+      gain.connect(pomodoroAudioContext.destination);
+      oscillator.start(noteStart);
+      oscillator.stop(noteEnd);
+    });
+  } catch (error) {
+    console.error("Timer success sound failed:", error);
+  }
+}
+
+function sendTimerBrowserNotification(title, message) {
+  if (!("Notification" in window) || Notification.permission !== "granted") {
+    return;
+  }
+
+  new Notification(title, { body: message });
+}
+
+function notifyPomodoroComplete(mode, taskName) {
+  const modeLabel = POMODORO_MODE_LABELS[mode] || "Timer";
+  const message = mode === "work"
+    ? `${modeLabel} complete. ${getPomodoroDurationLabel("work")} saved for ${taskName}.`
+    : `${modeLabel} complete. Ready to focus again?`;
+
+  showNotification(message, "success");
+  sendTimerBrowserNotification("Dailies Timer", message);
+  playTimerSuccessSound();
+  updateTimerStatus(message);
+}
+
+function getCurrentSessionElapsedSeconds(completed = false) {
+  if (!timerStartTime) return 0;
+  if (completed && currentTimerDurationSeconds) return currentTimerDurationSeconds;
+
+  const elapsedSeconds = Math.floor((Date.now() - timerStartTime) / 1000);
+  if (!currentTimerDurationSeconds) return elapsedSeconds;
+
+  return Math.min(elapsedSeconds, currentTimerDurationSeconds);
+}
+
+function stopActivePomodoro({ completed = false, resetDisplay = true } = {}) {
+  if (!isTimerRunning) return 0;
+
+  const stoppedMode = currentTimerMode;
+  const stoppedTaskName = currentTaskName;
+  const seconds = getCurrentSessionElapsedSeconds(completed);
+  const shouldSaveTime = stoppedMode === "work" && stoppedTaskName && seconds > 0;
+
+  clearTimerInterval();
+  isTimerRunning = false;
+  timerStartTime = null;
+  timerTargetTime = null;
+  currentTimerMode = null;
+  currentTimerDurationSeconds = 0;
+  currentTaskName = "";
+
+  const display = document.getElementById("timer-display");
+  if (display) {
+    display.classList.remove("timer-running", "timer-break-running");
+  }
+
+  updateTimerControls();
+
+  if (shouldSaveTime) {
+    saveTimeTracking(stoppedTaskName, seconds).then(() => {
+      updateTimeTrackerDisplay();
+    });
+  }
+
+  if (resetDisplay) {
+    resetTimerDisplay(stoppedMode || "work");
+  }
+
+  return seconds;
+}
+
+function completeActivePomodoro() {
+  if (!isTimerRunning) return;
+
+  const completedMode = currentTimerMode;
+  const completedTaskName = currentTaskName;
+
+  stopActivePomodoro({ completed: true, resetDisplay: false });
+  setTimerDisplaySeconds(0);
+  notifyPomodoroComplete(completedMode, completedTaskName);
+}
+
+function startPomodoroSession(mode, taskName = "") {
+  const durationSeconds = POMODORO_DURATIONS[mode] || POMODORO_DURATIONS.work;
+  const display = document.getElementById("timer-display");
+
+  currentTimerMode = mode;
+  currentTaskName = mode === "work" ? taskName : "";
+  currentTimerDurationSeconds = durationSeconds;
+  isTimerRunning = true;
+  timerStartTime = Date.now();
+  timerTargetTime = timerStartTime + durationSeconds * 1000;
+
+  clearTimerInterval();
+  timerInterval = setInterval(updateTimerDisplay, 250);
+
+  if (display) {
+    display.classList.toggle("timer-running", mode === "work");
+    display.classList.toggle("timer-break-running", mode !== "work");
+  }
+
+  updateTimerControls();
+  updateTimerDisplay();
+  requestTimerNotificationPermission();
+  unlockPomodoroAudio();
+
+  if (mode === "work") {
+    updateTimerStatus(`Focus timer running for ${taskName}. Time will be saved if interrupted.`);
+  } else {
+    updateTimerStatus(`${POMODORO_MODE_LABELS[mode]} running. Break time is not tracked.`);
+  }
+}
+
+function startPomodoroMode(mode) {
+  const selectedMode = POMODORO_DURATIONS[mode] ? mode : "work";
   const taskInput = document.getElementById("timer-task-input");
-  taskInput.disabled = false;
+  const taskName = taskInput ? taskInput.value.trim() : "";
 
-  document.getElementById("timer-display").textContent = "00:00:00";
+  if (isTimerRunning && currentTimerMode === selectedMode) {
+    stopActivePomodoro({ completed: false, resetDisplay: true });
+    return;
+  }
 
-  // Update displays
-  updateTimeTrackerDisplay();
+  if (selectedMode === "work" && !taskName) {
+    showNotification("Please enter a task name before starting the timer.", "error");
+    return;
+  }
+
+  if (isTimerRunning) {
+    stopActivePomodoro({ completed: false, resetDisplay: false });
+  }
+
+  startPomodoroSession(selectedMode, taskName);
+}
+
+// Toggle timer start/stop. Kept for existing inline handlers and tests.
+function toggleTimer() {
+  startPomodoroMode("work");
+}
+
+// Start the work timer. Kept for existing integrations.
+function startTimer(taskName) {
+  const normalizedTaskName = String(taskName || "").trim();
+  if (!normalizedTaskName) {
+    showNotification("Please enter a task name before starting the timer.", "error");
+    return;
+  }
+
+  if (isTimerRunning) {
+    return;
+  }
+
+  startPomodoroSession("work", normalizedTaskName);
+}
+
+// Stop the current timer and save work time when relevant.
+function stopTimer() {
+  stopActivePomodoro({ completed: false, resetDisplay: true });
 }
 
 // Update the timer display
 function updateTimerDisplay() {
-  if (!isTimerRunning || !timerStartTime) {
+  if (!isTimerRunning || !timerTargetTime) {
     return;
   }
 
-  const elapsed = Date.now() - timerStartTime;
-  const hours = Math.floor(elapsed / 3600000);
-  const minutes = Math.floor((elapsed % 3600000) / 60000);
-  const seconds = Math.floor((elapsed % 60000) / 1000);
+  const remainingMs = timerTargetTime - Date.now();
+  const remainingSeconds = Math.max(0, Math.ceil(remainingMs / 1000));
 
-  const display = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-  document.getElementById("timer-display").textContent = display;
+  setTimerDisplaySeconds(remainingSeconds);
+
+  if (remainingMs <= 0) {
+    completeActivePomodoro();
+  }
 }
 
 // Save time tracking data to IndexedDB
 function saveTimeTracking(taskName, seconds) {
-  if (!db) {
-    console.error("Database not initialized");
-    return;
-  }
+  return new Promise((resolve) => {
+    if (!db) {
+      console.error("Database not initialized");
+      resolve(false);
+      return;
+    }
 
-  const timeEntry = {
-    taskName: taskName,
-    seconds: seconds,
-    timestamp: new Date().toISOString()
-  };
+    if (!taskName || seconds < 1) {
+      resolve(false);
+      return;
+    }
 
-  const transaction = db.transaction(["timeTracking"], "readwrite");
-  const timeStore = transaction.objectStore("timeTracking");
+    const timeEntry = {
+      taskName: taskName,
+      seconds: seconds,
+      timestamp: new Date().toISOString()
+    };
 
-  const request = timeStore.add(timeEntry);
+    const transaction = db.transaction(["timeTracking"], "readwrite");
+    const timeStore = transaction.objectStore("timeTracking");
 
-  request.onsuccess = () => {
-    console.log("Time tracking entry saved successfully");
-  };
+    const request = timeStore.add(timeEntry);
 
-  request.onerror = (event) => {
-    console.error("Error saving time tracking:", event.target.error);
-  };
+    request.onsuccess = () => {
+      console.log("Time tracking entry saved successfully");
+      resolve(true);
+    };
+
+    request.onerror = (event) => {
+      console.error("Error saving time tracking:", event.target.error);
+      resolve(false);
+    };
+  });
 }
 
 // Format seconds to readable time string
@@ -2490,7 +2835,7 @@ function startTimerWithTask(taskName) {
   taskInput.value = taskName;
   
   if (isTimerRunning) {
-    stopTimer();
+    stopActivePomodoro({ completed: false, resetDisplay: false });
   }
   startTimer(taskName);
 }
@@ -2897,7 +3242,7 @@ function showNotification(message, type = "info") {
       <span class="material-symbols-outlined text-lg flex-shrink-0">
         ${type === 'success' ? 'check_circle' : type === 'error' ? 'error' : 'info'}
       </span>
-      <span>${message}</span>
+      <span>${escapeHTML(message)}</span>
     </div>
   `;
 
