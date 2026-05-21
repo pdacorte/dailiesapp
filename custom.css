@@ -3,6 +3,100 @@
    Production-ready styles & animations
    ======================================== */
 
+:root {
+  --oc-tokyonight-bg: #1a1b26;
+  --oc-tokyonight-bg-panel: #16161e;
+  --oc-tokyonight-bg-deep: #0c0e14;
+  --oc-tokyonight-bg-element: #292e42;
+  --oc-tokyonight-bg-visual: #283457;
+  --oc-tokyonight-text: #c0caf5;
+  --oc-tokyonight-text-muted: #a9b1d6;
+  --oc-tokyonight-comment: #565f89;
+  --oc-tokyonight-dark3: #545c7e;
+  --oc-tokyonight-dark5: #737aa2;
+  --oc-tokyonight-primary: #7aa2f7;
+  --oc-tokyonight-secondary: #9d7cd8;
+  --oc-tokyonight-accent: #ff9e64;
+  --oc-tokyonight-error: #db4b4b;
+  --oc-tokyonight-warning: #e0af68;
+  --oc-tokyonight-red: #f7768e;
+  --oc-tokyonight-success: #9ece6a;
+  --oc-tokyonight-info: #0db9d7;
+  --oc-tokyonight-teal: #1abc9c;
+  --oc-tokyonight-green1: #73daca;
+  --oc-tokyonight-cyan: #7dcfff;
+  --oc-tokyonight-border: #15161e;
+  --oc-tokyonight-border-active: #27a1b9;
+}
+
+html[data-theme="tokyo-night"] {
+  --primary: var(--oc-tokyonight-primary);
+  --primary-hover: #3d59a1;
+  --shadow-card: 0 16px 40px rgba(0, 0, 0, 0.22), 0 0 0 1px rgba(122, 162, 247, 0.04);
+  --shadow-card-hover: 0 22px 52px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(39, 161, 185, 0.14);
+  color-scheme: dark;
+}
+
+.theme-toggle-button {
+  position: fixed;
+  right: 1.5rem;
+  bottom: 1.5rem;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  color: #52525b;
+  background: white;
+  border: 1px solid rgba(228, 228, 231, 0.6);
+  border-radius: 999px;
+  box-shadow: 0 12px 26px rgba(212, 212, 216, 0.45);
+  cursor: pointer;
+  transition: transform var(--transition-spring),
+              color var(--transition-base),
+              background-color var(--transition-base),
+              border-color var(--transition-base),
+              box-shadow var(--transition-base);
+}
+
+.theme-toggle-button:hover {
+  transform: scale(1.1);
+  color: var(--primary);
+}
+
+.theme-toggle-button:active {
+  transform: scale(0.95);
+}
+
+.dark .theme-toggle-button {
+  color: #d4d4d8;
+  background: #27272a;
+  border-color: rgba(63, 63, 70, 0.6);
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.28);
+}
+
+.theme-toggle-icon {
+  font-size: 1.25rem;
+  transition: transform var(--transition-spring), color var(--transition-base);
+}
+
+.theme-toggle-button:hover .theme-toggle-icon {
+  transform: rotate(12deg);
+}
+
+.theme-toggle-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* ========================================
    Card Component
    ======================================== */
@@ -1478,6 +1572,536 @@
 }
 
 /* ========================================
+   Tokyo Night Theme
+   ======================================== */
+
+html[data-theme="tokyo-night"] body {
+  color: var(--oc-tokyonight-text) !important;
+  background:
+    radial-gradient(circle at top left, rgba(122, 162, 247, 0.12), transparent 28rem),
+    radial-gradient(circle at 82% 12%, rgba(187, 154, 247, 0.1), transparent 24rem),
+    linear-gradient(135deg, var(--oc-tokyonight-bg), #171923 58%, var(--oc-tokyonight-bg-deep)) !important;
+}
+
+html[data-theme="tokyo-night"] main {
+  color: var(--oc-tokyonight-text);
+}
+
+html[data-theme="tokyo-night"] ::selection {
+  background: rgba(40, 52, 87, 0.95);
+  color: var(--oc-tokyonight-text);
+}
+
+html[data-theme="tokyo-night"] :focus-visible {
+  outline-color: var(--oc-tokyonight-border-active);
+}
+
+html[data-theme="tokyo-night"] :is(
+  .text-zinc-900,
+  .text-zinc-800,
+  .dark\:text-white,
+  .text-gray-800,
+  .dark\:text-gray-200
+) {
+  color: var(--oc-tokyonight-text) !important;
+}
+
+html[data-theme="tokyo-night"] :is(
+  .text-zinc-700,
+  .dark\:text-zinc-200,
+  .dark\:text-zinc-300,
+  .text-gray-700,
+  .dark\:text-gray-300
+) {
+  color: var(--oc-tokyonight-text-muted) !important;
+}
+
+html[data-theme="tokyo-night"] :is(
+  .text-zinc-600,
+  .text-zinc-500,
+  .dark\:text-zinc-400,
+  .text-gray-600,
+  .dark\:text-gray-400
+) {
+  color: var(--oc-tokyonight-dark5) !important;
+}
+
+html[data-theme="tokyo-night"] :is(
+  .text-zinc-400,
+  .dark\:text-zinc-500,
+  .dark\:text-zinc-600,
+  .text-gray-500
+) {
+  color: var(--oc-tokyonight-comment) !important;
+}
+
+html[data-theme="tokyo-night"] :is(
+  .text-indigo-400,
+  .text-indigo-500,
+  .text-indigo-600,
+  .dark\:text-indigo-400,
+  .text-blue-500,
+  .text-blue-600,
+  .dark\:text-blue-400
+) {
+  color: var(--oc-tokyonight-primary) !important;
+}
+
+html[data-theme="tokyo-night"] :is(.text-violet-400, .text-violet-500) {
+  color: var(--oc-tokyonight-secondary) !important;
+}
+
+html[data-theme="tokyo-night"] :is(
+  .text-emerald-400,
+  .text-emerald-500,
+  .text-green-500
+) {
+  color: var(--oc-tokyonight-success) !important;
+}
+
+html[data-theme="tokyo-night"] :is(.text-amber-400, .text-amber-500) {
+  color: var(--oc-tokyonight-warning) !important;
+}
+
+html[data-theme="tokyo-night"] :is(
+  .text-red-500,
+  .text-red-600,
+  .dark\:text-red-400,
+  .dark\:hover\:text-red-400:hover
+) {
+  color: var(--oc-tokyonight-error) !important;
+}
+
+html[data-theme="tokyo-night"] :is(
+  .bg-white,
+  .dark\:bg-gray-800,
+  .dark\:bg-zinc-800,
+  .dark\:bg-zinc-900\/80
+) {
+  background-color: var(--oc-tokyonight-bg-panel) !important;
+}
+
+html[data-theme="tokyo-night"] :is(
+  .bg-zinc-50,
+  .dark\:bg-zinc-950,
+  .bg-gray-50,
+  .dark\:bg-gray-700,
+  .dark\:bg-zinc-800\/60,
+  .dark\:hover\:bg-zinc-800\/60:hover
+) {
+  background-color: var(--oc-tokyonight-bg-element) !important;
+}
+
+html[data-theme="tokyo-night"] :is(
+  .border-zinc-100,
+  .dark\:border-zinc-800,
+  .border-zinc-200,
+  .dark\:border-zinc-700,
+  .border-gray-200,
+  .dark\:border-gray-700
+) {
+  border-color: rgba(84, 92, 126, 0.36) !important;
+}
+
+html[data-theme="tokyo-night"] body {
+  color: var(--oc-tokyonight-text) !important;
+  background-color: var(--oc-tokyonight-bg) !important;
+  background-image:
+    radial-gradient(circle at top left, rgba(122, 162, 247, 0.12), transparent 28rem),
+    radial-gradient(circle at 82% 12%, rgba(187, 154, 247, 0.1), transparent 24rem),
+    linear-gradient(135deg, var(--oc-tokyonight-bg), #171923 58%, var(--oc-tokyonight-bg-deep)) !important;
+}
+
+html[data-theme="tokyo-night"] body.bg-zinc-50,
+html[data-theme="tokyo-night"] body.text-zinc-800 {
+  color: var(--oc-tokyonight-text) !important;
+  background-color: var(--oc-tokyonight-bg) !important;
+}
+
+html[data-theme="tokyo-night"] body.bg-zinc-50.dark\:bg-zinc-950.text-zinc-800.dark\:text-zinc-200 {
+  color: var(--oc-tokyonight-text) !important;
+  background-color: var(--oc-tokyonight-bg) !important;
+}
+
+html[data-theme="tokyo-night"] #sidebar {
+  background: rgba(22, 22, 30, 0.88) !important;
+  border-right-color: var(--oc-tokyonight-border) !important;
+  box-shadow: 18px 0 46px rgba(0, 0, 0, 0.22);
+}
+
+html[data-theme="tokyo-night"] #user-avatar {
+  box-shadow: 0 0 0 2px rgba(39, 161, 185, 0.25), 0 10px 26px rgba(122, 162, 247, 0.2);
+}
+
+html[data-theme="tokyo-night"] :is(#sidebar-toggle, .sidebar-link) {
+  color: var(--oc-tokyonight-text-muted) !important;
+}
+
+html[data-theme="tokyo-night"] :is(#sidebar-toggle, .sidebar-link):hover {
+  color: var(--oc-tokyonight-text) !important;
+  background: rgba(41, 46, 66, 0.74) !important;
+}
+
+html[data-theme="tokyo-night"] .sidebar-link.active {
+  color: var(--oc-tokyonight-text) !important;
+  background: linear-gradient(135deg, rgba(122, 162, 247, 0.2), rgba(157, 124, 216, 0.16)) !important;
+  box-shadow: inset 0 0 0 1px rgba(122, 162, 247, 0.2);
+}
+
+html[data-theme="tokyo-night"] .sidebar-link.active .material-symbols-outlined {
+  color: var(--oc-tokyonight-primary) !important;
+}
+
+html[data-theme="tokyo-night"] #new-task-button {
+  color: var(--oc-tokyonight-bg-deep) !important;
+  background: linear-gradient(135deg, var(--oc-tokyonight-primary), var(--oc-tokyonight-cyan)) !important;
+  box-shadow: 0 12px 26px rgba(122, 162, 247, 0.22);
+}
+
+html[data-theme="tokyo-night"] .card {
+  background: linear-gradient(180deg, rgba(22, 22, 30, 0.94), rgba(22, 22, 30, 0.82));
+  border-color: rgba(84, 92, 126, 0.24);
+  box-shadow: var(--shadow-card);
+}
+
+html[data-theme="tokyo-night"] .card:hover {
+  border-color: rgba(39, 161, 185, 0.42);
+  box-shadow: var(--shadow-card-hover);
+}
+
+html[data-theme="tokyo-night"] .card-gradient-streak,
+html[data-theme="tokyo-night"] .compact-streak-card {
+  color: var(--oc-tokyonight-bg-deep);
+  background: linear-gradient(135deg, var(--oc-tokyonight-accent), var(--oc-tokyonight-warning), var(--oc-tokyonight-primary));
+  box-shadow: 0 14px 34px rgba(255, 158, 100, 0.2);
+}
+
+html[data-theme="tokyo-night"] .compact-streak-label {
+  color: rgba(12, 14, 20, 0.68);
+}
+
+html[data-theme="tokyo-night"] .today-routine-badge {
+  color: var(--oc-tokyonight-cyan);
+  background: rgba(13, 185, 215, 0.12);
+  border-color: rgba(39, 161, 185, 0.32);
+}
+
+html[data-theme="tokyo-night"] :is(.input-field, .progress-goal-control input) {
+  color: var(--oc-tokyonight-text);
+  background: rgba(41, 46, 66, 0.66);
+  border-color: rgba(84, 92, 126, 0.42);
+}
+
+html[data-theme="tokyo-night"] :is(.input-field, .progress-goal-control input)::placeholder {
+  color: var(--oc-tokyonight-comment);
+}
+
+html[data-theme="tokyo-night"] :is(.input-field, .progress-goal-control input):hover {
+  border-color: rgba(122, 162, 247, 0.45);
+}
+
+html[data-theme="tokyo-night"] :is(.input-field, .progress-goal-control input):focus {
+  color: var(--oc-tokyonight-text);
+  background: rgba(22, 22, 30, 0.98);
+  border-color: var(--oc-tokyonight-border-active);
+  box-shadow: 0 0 0 3px rgba(39, 161, 185, 0.18);
+}
+
+html[data-theme="tokyo-night"] .btn-primary {
+  color: var(--oc-tokyonight-bg-deep);
+  background: var(--oc-tokyonight-primary);
+}
+
+html[data-theme="tokyo-night"] .btn-primary:hover {
+  background: #8db0ff;
+  box-shadow: 0 8px 20px rgba(122, 162, 247, 0.24);
+}
+
+html[data-theme="tokyo-night"] .btn-success {
+  color: var(--oc-tokyonight-bg-deep);
+  background: var(--oc-tokyonight-success);
+}
+
+html[data-theme="tokyo-night"] .btn-success:hover {
+  background: #9fe044;
+  box-shadow: 0 8px 20px rgba(158, 206, 106, 0.22);
+}
+
+html[data-theme="tokyo-night"] .btn-danger {
+  background: var(--oc-tokyonight-error);
+}
+
+html[data-theme="tokyo-night"] .btn-ghost {
+  color: var(--oc-tokyonight-text-muted);
+  background: rgba(22, 22, 30, 0.38);
+  border-color: rgba(84, 92, 126, 0.4);
+}
+
+html[data-theme="tokyo-night"] .btn-ghost:hover {
+  color: var(--oc-tokyonight-text);
+  background: rgba(41, 46, 66, 0.84);
+  border-color: rgba(122, 162, 247, 0.38);
+}
+
+html[data-theme="tokyo-night"] .label-text {
+  color: var(--oc-tokyonight-text-muted);
+}
+
+html[data-theme="tokyo-night"] .pomodoro-btn-work {
+  color: var(--oc-tokyonight-success);
+  background: rgba(158, 206, 106, 0.12);
+  border-color: rgba(158, 206, 106, 0.28);
+}
+
+html[data-theme="tokyo-night"] .pomodoro-btn-short {
+  color: var(--oc-tokyonight-cyan);
+  background: rgba(125, 207, 255, 0.12);
+  border-color: rgba(125, 207, 255, 0.28);
+}
+
+html[data-theme="tokyo-night"] .pomodoro-btn-long {
+  color: var(--oc-tokyonight-warning);
+  background: rgba(224, 175, 104, 0.12);
+  border-color: rgba(224, 175, 104, 0.28);
+}
+
+html[data-theme="tokyo-night"] .pomodoro-btn:hover,
+html[data-theme="tokyo-night"] .pomodoro-btn.active {
+  color: var(--oc-tokyonight-bg-deep);
+}
+
+html[data-theme="tokyo-night"] .pomodoro-btn-work:hover,
+html[data-theme="tokyo-night"] .pomodoro-btn-work.active {
+  background: var(--oc-tokyonight-success);
+  border-color: var(--oc-tokyonight-success);
+}
+
+html[data-theme="tokyo-night"] .pomodoro-btn-short:hover,
+html[data-theme="tokyo-night"] .pomodoro-btn-short.active {
+  background: var(--oc-tokyonight-cyan);
+  border-color: var(--oc-tokyonight-cyan);
+}
+
+html[data-theme="tokyo-night"] .pomodoro-btn-long:hover,
+html[data-theme="tokyo-night"] .pomodoro-btn-long.active {
+  background: var(--oc-tokyonight-warning);
+  border-color: var(--oc-tokyonight-warning);
+}
+
+html[data-theme="tokyo-night"] .pomodoro-status {
+  color: var(--oc-tokyonight-dark5);
+}
+
+html[data-theme="tokyo-night"] .timer-display {
+  color: var(--oc-tokyonight-text);
+  background: linear-gradient(135deg, rgba(41, 46, 66, 0.88), rgba(22, 22, 30, 0.96));
+  border-color: rgba(84, 92, 126, 0.42);
+}
+
+html[data-theme="tokyo-night"] .timer-display.timer-running {
+  color: var(--oc-tokyonight-success);
+  border-color: rgba(158, 206, 106, 0.38);
+}
+
+html[data-theme="tokyo-night"] .timer-display.timer-break-running {
+  color: var(--oc-tokyonight-cyan);
+  border-color: rgba(125, 207, 255, 0.38);
+}
+
+html[data-theme="tokyo-night"] .confirmation-button {
+  border-color: var(--oc-tokyonight-dark3);
+  background: rgba(22, 22, 30, 0.4);
+}
+
+html[data-theme="tokyo-night"] .confirmation-button:hover {
+  border-color: var(--oc-tokyonight-primary);
+  background-color: rgba(122, 162, 247, 0.12);
+}
+
+html[data-theme="tokyo-night"] .confirmation-button:hover::after {
+  border-color: var(--oc-tokyonight-primary);
+}
+
+html[data-theme="tokyo-night"] .confirmation-button:checked {
+  background-color: var(--oc-tokyonight-primary);
+  border-color: var(--oc-tokyonight-primary);
+}
+
+html[data-theme="tokyo-night"] :is(.task-item, .completed-item, .time-entry-item) {
+  background: rgba(41, 46, 66, 0.42);
+  border-color: rgba(84, 92, 126, 0.18);
+}
+
+html[data-theme="tokyo-night"] :is(.task-item, .completed-item, .time-entry-item):hover {
+  background: rgba(41, 46, 66, 0.72);
+  border-color: rgba(122, 162, 247, 0.26);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.16);
+}
+
+html[data-theme="tokyo-night"] :is(.task-title-text, .completed-title-text, .subtask-title) {
+  color: var(--oc-tokyonight-text);
+}
+
+html[data-theme="tokyo-night"] :is(.completed-parent-title, .completed-separator) {
+  color: var(--oc-tokyonight-text-muted);
+}
+
+html[data-theme="tokyo-night"] .subtask-progress {
+  color: var(--oc-tokyonight-cyan);
+  background: rgba(13, 185, 215, 0.12);
+}
+
+html[data-theme="tokyo-night"] :is(.task-type-badge.goal, .completed-subtask-badge) {
+  color: var(--oc-tokyonight-primary);
+  background: rgba(122, 162, 247, 0.14);
+}
+
+html[data-theme="tokyo-night"] .task-type-badge.non-negotiable {
+  color: var(--oc-tokyonight-accent);
+  background: rgba(255, 158, 100, 0.13);
+}
+
+html[data-theme="tokyo-night"] .subtask-toggle-btn {
+  color: var(--oc-tokyonight-primary);
+  background: rgba(22, 22, 30, 0.46);
+  border-color: rgba(84, 92, 126, 0.36);
+}
+
+html[data-theme="tokyo-night"] .subtask-toggle-btn:hover {
+  background: rgba(122, 162, 247, 0.13);
+  border-color: rgba(122, 162, 247, 0.38);
+}
+
+html[data-theme="tokyo-night"] .subtask-list {
+  border-left-color: rgba(84, 92, 126, 0.42);
+}
+
+html[data-theme="tokyo-night"] .subtask-item {
+  background: rgba(22, 22, 30, 0.48);
+  border-color: rgba(84, 92, 126, 0.26);
+}
+
+html[data-theme="tokyo-night"] .subtask-empty {
+  color: var(--oc-tokyonight-green1);
+}
+
+html[data-theme="tokyo-night"] .task-delete-btn {
+  color: var(--oc-tokyonight-comment);
+}
+
+html[data-theme="tokyo-night"] .task-delete-btn:hover {
+  color: var(--oc-tokyonight-error);
+  background: rgba(247, 118, 142, 0.13);
+}
+
+html[data-theme="tokyo-night"] .day-cell:hover {
+  background: rgba(41, 46, 66, 0.58);
+}
+
+html[data-theme="tokyo-night"] .day-cell .day-label {
+  color: var(--oc-tokyonight-comment);
+}
+
+html[data-theme="tokyo-night"] .day-cell .day-count.positive {
+  color: var(--oc-tokyonight-success);
+  background: rgba(158, 206, 106, 0.13);
+}
+
+html[data-theme="tokyo-night"] .day-cell .day-count.zero {
+  color: var(--oc-tokyonight-dark3);
+  background: rgba(41, 46, 66, 0.7);
+}
+
+html[data-theme="tokyo-night"] .drag-handle {
+  color: var(--oc-tokyonight-dark3);
+}
+
+html[data-theme="tokyo-night"] .task-item:hover .drag-handle {
+  color: var(--oc-tokyonight-primary);
+}
+
+html[data-theme="tokyo-night"] .task-item.drag-over {
+  border-color: var(--oc-tokyonight-border-active) !important;
+  background: rgba(39, 161, 185, 0.08);
+}
+
+html[data-theme="tokyo-night"] .quote-box {
+  background: linear-gradient(135deg, rgba(41, 46, 66, 0.66), rgba(22, 22, 30, 0.88));
+  border-color: rgba(84, 92, 126, 0.32);
+}
+
+html[data-theme="tokyo-night"] .quote-box::before {
+  color: rgba(122, 162, 247, 0.18);
+}
+
+html[data-theme="tokyo-night"] .notification-toast.success {
+  color: var(--oc-tokyonight-success);
+  background: rgba(36, 62, 74, 0.96);
+  border-color: rgba(115, 218, 202, 0.32);
+}
+
+html[data-theme="tokyo-night"] .notification-toast.error {
+  color: var(--oc-tokyonight-red, #f7768e);
+  background: rgba(74, 39, 47, 0.96);
+  border-color: rgba(247, 118, 142, 0.32);
+}
+
+html[data-theme="tokyo-night"] .notification-toast.info {
+  color: var(--oc-tokyonight-cyan);
+  background: rgba(40, 52, 87, 0.96);
+  border-color: rgba(125, 207, 255, 0.32);
+}
+
+html[data-theme="tokyo-night"] .custom-scrollbar::-webkit-scrollbar-thumb,
+html[data-theme="tokyo-night"] #sidebar::-webkit-scrollbar-thumb {
+  background: rgba(84, 92, 126, 0.56);
+}
+
+html[data-theme="tokyo-night"] .custom-scrollbar::-webkit-scrollbar-thumb:hover,
+html[data-theme="tokyo-night"] #sidebar::-webkit-scrollbar-thumb:hover {
+  background: rgba(122, 162, 247, 0.58);
+}
+
+html[data-theme="tokyo-night"] .empty-state {
+  color: var(--oc-tokyonight-comment);
+}
+
+html[data-theme="tokyo-night"] #theme-toggle {
+  color: var(--oc-tokyonight-primary);
+  background: linear-gradient(135deg, rgba(22, 22, 30, 0.96), rgba(41, 46, 66, 0.92));
+  border-color: rgba(39, 161, 185, 0.44);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.34), 0 0 24px rgba(122, 162, 247, 0.12);
+}
+
+html[data-theme="tokyo-night"] #theme-toggle:hover {
+  color: var(--oc-tokyonight-warning);
+  border-color: var(--oc-tokyonight-border-active);
+}
+
+html[data-theme="tokyo-night"] #theme-toggle[data-theme-state="tokyo-night"] .theme-toggle-icon {
+  color: var(--oc-tokyonight-warning);
+}
+
+html[data-theme="tokyo-night"] #google-drive-modal > div {
+  color: var(--oc-tokyonight-text);
+  background: var(--oc-tokyonight-bg-panel) !important;
+  border: 1px solid rgba(84, 92, 126, 0.34);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.46);
+}
+
+html[data-theme="tokyo-night"] #google-drive-modal-content {
+  background: var(--oc-tokyonight-bg-panel);
+}
+
+html[data-theme="tokyo-night"] #google-drive-modal :is(.bg-gray-50, .bg-gray-100, .dark\:bg-gray-700) {
+  background-color: var(--oc-tokyonight-bg-element) !important;
+}
+
+html[data-theme="tokyo-night"] #google-drive-modal :is(.bg-blue-100, .dark\:bg-blue-900\/30) {
+  background-color: rgba(122, 162, 247, 0.14) !important;
+}
+
+/* ========================================
    Empty State
    ======================================== */
 
@@ -1490,6 +2114,10 @@
 
 .dark .empty-state {
   color: #52525b;
+}
+
+html[data-theme="tokyo-night"] .empty-state {
+  color: var(--oc-tokyonight-comment);
 }
 
 .empty-state .material-symbols-outlined {

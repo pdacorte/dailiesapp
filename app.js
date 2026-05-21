@@ -63,6 +63,79 @@ let dailyAlertInterval = null
 let dashboardHeightSyncFrame = null
 const taskCompletionsInFlight = new Set()
 
+const THEME_SEQUENCE = ["light", "dark", "tokyo-night"]
+const THEME_CONFIG = {
+  light: {
+    label: "Light",
+    icon: "light_mode",
+  },
+  dark: {
+    label: "Dark",
+    icon: "dark_mode",
+  },
+  "tokyo-night": {
+    label: "Tokyo Night",
+    icon: "nights_stay",
+  },
+}
+
+const DEFAULT_CHART_COLORS = {
+  light: {
+    isDark: false,
+    grid: "rgba(228, 228, 231, 0.6)",
+    text: "#71717a",
+    tooltipBackground: "#ffffff",
+    tooltipTitle: "#18181b",
+    tooltipBody: "#71717a",
+    tooltipBorder: "#e4e4e7",
+    expectedBorder: "#a5b4fc",
+    expectedBackground: "rgba(165, 180, 252, 0.08)",
+    actualBorder: "#34d399",
+    actualBackground: "rgba(52, 211, 153, 0.08)",
+    pieBorder: "#ffffff",
+    pieColors: [
+      "#818cf8", "#34d399", "#fb923c", "#f87171", "#a78bfa",
+      "#38bdf8", "#fbbf24", "#f472b6", "#4ade80", "#e879f9",
+    ],
+  },
+  dark: {
+    isDark: true,
+    grid: "rgba(63, 63, 70, 0.3)",
+    text: "#a1a1aa",
+    tooltipBackground: "#27272a",
+    tooltipTitle: "#e4e4e7",
+    tooltipBody: "#a1a1aa",
+    tooltipBorder: "#3f3f46",
+    expectedBorder: "#a5b4fc",
+    expectedBackground: "rgba(165, 180, 252, 0.08)",
+    actualBorder: "#34d399",
+    actualBackground: "rgba(52, 211, 153, 0.08)",
+    pieBorder: "#18181b",
+    pieColors: [
+      "#818cf8", "#34d399", "#fb923c", "#f87171", "#a78bfa",
+      "#38bdf8", "#fbbf24", "#f472b6", "#4ade80", "#e879f9",
+    ],
+  },
+  "tokyo-night": {
+    isDark: true,
+    grid: "rgba(84, 92, 126, 0.28)",
+    text: "#a9b1d6",
+    tooltipBackground: "#16161e",
+    tooltipTitle: "#c0caf5",
+    tooltipBody: "#a9b1d6",
+    tooltipBorder: "#27a1b9",
+    expectedBorder: "#7aa2f7",
+    expectedBackground: "rgba(122, 162, 247, 0.12)",
+    actualBorder: "#9ece6a",
+    actualBackground: "rgba(158, 206, 106, 0.12)",
+    pieBorder: "#16161e",
+    pieColors: [
+      "#7aa2f7", "#e0af68", "#9ece6a", "#1abc9c", "#bb9af7",
+      "#9d7cd8", "#ff9e64", "#f7768e", "#7dcfff", "#73daca",
+    ],
+  },
+}
+
 const DAILY_ALERT_DEFAULTS = {
   enabled: false,
   channel: "notification",
@@ -212,10 +285,82 @@ const motivationalQuotes = [
   },
 ]
 
+function normalizeTheme(theme) {
+  const normalizedTheme = theme === "tokyonight" || theme === "tokyoNight"
+    ? "tokyo-night"
+    : theme
+
+  return THEME_SEQUENCE.includes(normalizedTheme) ? normalizedTheme : "light"
+}
+
+function getCurrentTheme() {
+  const root = document.documentElement
+  const dataTheme = root.dataset ? root.dataset.themeMode : null
+
+  return normalizeTheme(dataTheme || localStorage.getItem("theme") || "light")
+}
+
+function getNextTheme(theme) {
+  const currentIndex = THEME_SEQUENCE.indexOf(normalizeTheme(theme))
+  return THEME_SEQUENCE[(currentIndex + 1) % THEME_SEQUENCE.length]
+}
+
+function updateThemeToggleButton(theme) {
+  const button = document.getElementById("theme-toggle")
+  if (!button) return
+
+  const currentTheme = normalizeTheme(theme)
+  const nextTheme = getNextTheme(currentTheme)
+  const currentConfig = THEME_CONFIG[currentTheme]
+  const nextConfig = THEME_CONFIG[nextTheme]
+  const icon = document.getElementById("theme-toggle-icon")
+  const label = document.getElementById("theme-toggle-label")
+
+  if (icon) {
+    icon.textContent = currentConfig.icon
+  }
+
+  if (label) {
+    label.textContent = currentConfig.label
+  }
+
+  button.dataset.themeState = currentTheme
+  button.title = `Theme: ${currentConfig.label}. Click for ${nextConfig.label}.`
+  button.setAttribute("aria-label", `Theme: ${currentConfig.label}. Switch to ${nextConfig.label}.`)
+}
+
+function applyTheme(theme) {
+  const nextTheme = normalizeTheme(theme)
+  const root = document.documentElement
+  const isDarkTheme = nextTheme !== "light"
+
+  if (isDarkTheme) {
+    root.classList.add("dark")
+  } else {
+    root.classList.remove("dark")
+  }
+
+  if (root.dataset) {
+    root.dataset.themeMode = nextTheme
+    if (nextTheme === "tokyo-night") {
+      root.dataset.theme = "tokyo-night"
+    } else {
+      delete root.dataset.theme
+    }
+  }
+
+  localStorage.setItem("theme", nextTheme)
+  updateThemeToggleButton(nextTheme)
+  return nextTheme
+}
+
+function getThemeChartColors() {
+  return DEFAULT_CHART_COLORS[getCurrentTheme()] || DEFAULT_CHART_COLORS.light
+}
+
 // Set up initial theme and database when page loads
 document.addEventListener("DOMContentLoaded", async () => {
-  const savedTheme = localStorage.getItem("theme") || "light"
-  document.documentElement.classList.toggle("dark", savedTheme === "dark")
+  applyTheme(localStorage.getItem("theme") || "light")
   initializeSidebar()
   initializeDB()
   setupEventListeners()
@@ -349,6 +494,7 @@ function setActiveNav(view) {
       "text-indigo-600",
       "dark:bg-indigo-500/15",
       "dark:text-indigo-400",
+      "active",
     );
     link.classList.add(
       "text-zinc-600",
@@ -369,6 +515,7 @@ function setActiveNav(view) {
         "text-indigo-600",
         "dark:bg-indigo-500/15",
         "dark:text-indigo-400",
+        "active",
       );
       if (icon) {
         icon.classList.add("fill");
@@ -2102,7 +2249,10 @@ function updateStreak() {
 
 // Update the progress chart comparing expected vs actual tasks
 function updateChart() {
-  const ctx = document.getElementById("progress-chart").getContext("2d")
+  const chartElement = document.getElementById("progress-chart")
+  if (!chartElement || !db) return
+
+  const ctx = chartElement.getContext("2d")
 
   // Destroy previous chart instance if it exists
   if (currentChart) {
@@ -2137,9 +2287,7 @@ function updateChart() {
     }, [])
 
     // Create new chart and store the instance
-    const isDark = document.documentElement.classList.contains('dark')
-    const gridColor = isDark ? 'rgba(63, 63, 70, 0.3)' : 'rgba(228, 228, 231, 0.6)'
-    const textColor = isDark ? '#a1a1aa' : '#71717a'
+    const chartColors = getThemeChartColors()
 
     currentChart = new Chart(ctx, {
       type: "line",
@@ -2149,26 +2297,26 @@ function updateChart() {
           {
             label: "Expected",
             data: expected,
-            borderColor: "#a5b4fc",
-            backgroundColor: "rgba(165, 180, 252, 0.08)",
+            borderColor: chartColors.expectedBorder,
+            backgroundColor: chartColors.expectedBackground,
             fill: true,
             borderWidth: 2,
             tension: 0.4,
             pointRadius: 0,
             pointHoverRadius: 4,
-            pointHoverBackgroundColor: "#a5b4fc",
+            pointHoverBackgroundColor: chartColors.expectedBorder,
           },
           {
             label: "Actual",
             data: actual,
-            borderColor: "#34d399",
-            backgroundColor: "rgba(52, 211, 153, 0.08)",
+            borderColor: chartColors.actualBorder,
+            backgroundColor: chartColors.actualBackground,
             fill: true,
             borderWidth: 2.5,
             tension: 0.4,
             pointRadius: 0,
             pointHoverRadius: 5,
-            pointHoverBackgroundColor: "#34d399",
+            pointHoverBackgroundColor: chartColors.actualBorder,
           },
         ],
       },
@@ -2182,7 +2330,7 @@ function updateChart() {
         plugins: {
           legend: {
             labels: {
-              color: textColor,
+              color: chartColors.text,
               font: { size: 11, family: 'Inter' },
               usePointStyle: true,
               pointStyle: 'circle',
@@ -2190,10 +2338,10 @@ function updateChart() {
             },
           },
           tooltip: {
-            backgroundColor: isDark ? '#27272a' : '#ffffff',
-            titleColor: isDark ? '#e4e4e7' : '#18181b',
-            bodyColor: isDark ? '#a1a1aa' : '#71717a',
-            borderColor: isDark ? '#3f3f46' : '#e4e4e7',
+            backgroundColor: chartColors.tooltipBackground,
+            titleColor: chartColors.tooltipTitle,
+            bodyColor: chartColors.tooltipBody,
+            borderColor: chartColors.tooltipBorder,
             borderWidth: 1,
             padding: 10,
             cornerRadius: 8,
@@ -2204,13 +2352,13 @@ function updateChart() {
         scales: {
           y: {
             beginAtZero: true,
-            grid: { color: gridColor, drawBorder: false },
-            ticks: { color: textColor, font: { size: 10, family: 'Inter' } },
+            grid: { color: chartColors.grid, drawBorder: false },
+            ticks: { color: chartColors.text, font: { size: 10, family: 'Inter' } },
             border: { display: false },
           },
           x: {
             grid: { display: false },
-            ticks: { color: textColor, font: { size: 9, family: 'Inter' }, maxRotation: 0, maxTicksLimit: 8 },
+            ticks: { color: chartColors.text, font: { size: 9, family: 'Inter' }, maxRotation: 0, maxTicksLimit: 8 },
             border: { display: false },
           },
         },
@@ -2296,13 +2444,140 @@ function resetDatabase() {
   }
 }
 
-// Toggle between light and dark theme
+// Cycle between light, dark, and Tokyo Night themes
 function toggleTheme() {
-  document.documentElement.classList.toggle("dark")
-  const isDark = document.documentElement.classList.contains("dark")
-  localStorage.setItem("theme", isDark ? "dark" : "light")
-  updateOngoingTasks()
+  applyTheme(getNextTheme(getCurrentTheme()))
+  updateOngoingTasks(false)
+  updateChart()
   updateTimePieChart()
+}
+
+function removeDeletedCompletedTaskElements(deletedIds) {
+  const completedList = document.getElementById("completed-tasks")
+  if (!completedList) return
+
+  deletedIds.forEach((id) => {
+    const completedElement = completedList.querySelector(`[data-completed-task-id="${id}"]`)
+    if (completedElement) completedElement.remove()
+  })
+
+  if (completedList.children.length === 0) {
+    completedList.innerHTML = '<div class="empty-state"><span class="material-symbols-outlined">check_circle</span>No completed tasks yet</div>'
+  }
+}
+
+function decrementTodayCompletionCount(amount) {
+  const countElement = document.getElementById("today-completed-count")
+  if (!countElement || amount <= 0) return
+
+  const currentCount = Number.parseInt(countElement.textContent, 10)
+  const nextCount = Math.max((Number.isNaN(currentCount) ? 0 : currentCount) - amount, 0)
+  countElement.textContent = `${nextCount} tasks completed`
+}
+
+function decrementSevenDayOverviewDate(date, amount) {
+  const dayCell = document.querySelector(`[data-overview-date="${date}"]`)
+  const countElement = dayCell ? dayCell.querySelector(".day-count") : null
+  if (!countElement || amount <= 0) return
+
+  const currentCount = Number.parseInt(countElement.textContent, 10)
+  const nextCount = Math.max((Number.isNaN(currentCount) ? 0 : currentCount) - amount, 0)
+  countElement.textContent = String(nextCount)
+  countElement.classList.toggle("positive", nextCount > 0)
+  countElement.classList.toggle("zero", nextCount === 0)
+}
+
+function decrementProgressChartDate(date, amount) {
+  if (!currentChart || !currentChart.data || !currentChart.data.datasets || amount <= 0) return
+
+  const actualDataset = currentChart.data.datasets[1]
+  if (!actualDataset || !Array.isArray(actualDataset.data)) return
+
+  const labels = currentChart.data.labels || []
+  let dateIndex = labels.indexOf(date)
+  if (dateIndex === -1 && date === getTodayDate()) {
+    dateIndex = actualDataset.data.length - 1
+  }
+  if (dateIndex < 0) return
+
+  for (let index = dateIndex; index < actualDataset.data.length; index++) {
+    actualDataset.data[index] = Math.max(Number(actualDataset.data[index] || 0) - amount, 0)
+  }
+  currentChart.update("none")
+}
+
+function patchDeletedCompletionStats(deletedTasks) {
+  const completedByDate = deletedTasks
+    .filter((task) => task.status === true && task.endDate)
+    .reduce((counts, task) => {
+      counts[task.endDate] = (counts[task.endDate] || 0) + 1
+      return counts
+    }, {})
+
+  Object.entries(completedByDate).forEach(([date, amount]) => {
+    if (date === getTodayDate()) {
+      decrementTodayCompletionCount(amount)
+    }
+    decrementSevenDayOverviewDate(date, amount)
+    decrementProgressChartDate(date, amount)
+  })
+
+  if (Object.keys(completedByDate).length > 0 && typeof updateStreak === "function") {
+    updateStreak()
+  }
+}
+
+function patchParentAfterSubtaskDelete(parentId, deletedIds, allTasks) {
+  const parentElement = document.querySelector(`[data-task-id="${parentId}"]`)
+  if (!parentElement) return false
+
+  const remainingSubtasks = allTasks
+    .filter((task) => task.parentId === parentId && !deletedIds.has(task.id))
+  const completedSubtasks = remainingSubtasks.filter((task) => task.status).length
+  const incompleteSubtasks = remainingSubtasks.length - completedSubtasks
+  const progressElement = parentElement.querySelector(".subtask-progress")
+  const subtaskList = parentElement.querySelector(".subtask-list")
+
+  parentElement.dataset.incompleteSubtasks = String(incompleteSubtasks)
+
+  if (remainingSubtasks.length === 0) {
+    if (progressElement) progressElement.remove()
+    if (subtaskList) subtaskList.remove()
+    return true
+  }
+
+  const nextProgressElement = progressElement || getOrCreateSubtaskProgress(parentElement)
+  if (!nextProgressElement) return false
+
+  nextProgressElement.textContent = `${completedSubtasks}/${remainingSubtasks.length} done`
+  if (subtaskList && incompleteSubtasks === 0) {
+    subtaskList.innerHTML = '<div class="subtask-empty">All subtasks complete</div>'
+  }
+
+  return true
+}
+
+function patchDeletedTaskFromDOM(task, childTasks, allTasks) {
+  const deletedTasks = [task, ...childTasks]
+  const deletedIds = new Set(deletedTasks.map((item) => item.id))
+  const taskElement = document.querySelector(`[data-task-id="${task.id}"]`)
+
+  removeDeletedCompletedTaskElements(deletedIds)
+  patchDeletedCompletionStats(deletedTasks)
+
+  if (hasParentTask(task)) {
+    if (!taskElement) return false
+    taskElement.remove()
+    if (!patchParentAfterSubtaskDelete(task.parentId, deletedIds, allTasks)) return false
+    syncDashboardTaskCardHeight()
+    return true
+  }
+
+  if (!taskElement) return false
+  taskElement.remove()
+  addOngoingEmptyStateIfNeeded({})
+  syncDashboardTaskCardHeight()
+  return true
 }
 
 function deleteTask(taskId) {
@@ -2339,7 +2614,15 @@ function deleteTask(taskId) {
 
     writeTransaction.oncomplete = () => {
       console.log("Task deleted successfully")
-      updateDisplay()
+      try {
+        if (!patchDeletedTaskFromDOM(task, childTasks, allTasks)) {
+          console.error("Could not patch deleted task from DOM; refreshing display.")
+          updateDisplay()
+        }
+      } catch (error) {
+        console.error("Error patching deleted task:", error)
+        updateDisplay()
+      }
     }
 
     writeTransaction.onerror = (event) => {
@@ -3033,14 +3316,7 @@ function updateTimePieChart() {
     const labels = sortedTasks.map(([taskName]) => taskName);
     const data = sortedTasks.map(([, seconds]) => seconds);
 
-    // Generate colors for the pie chart
-    const colors = [
-      '#818cf8', '#34d399', '#fb923c', '#f87171', '#a78bfa',
-      '#38bdf8', '#fbbf24', '#f472b6', '#4ade80', '#e879f9'
-    ];
-
-    const isDark = document.documentElement.classList.contains('dark')
-    const textColor = isDark ? '#a1a1aa' : '#71717a'
+    const chartColors = getThemeChartColors()
 
     // Create new pie chart
     currentPieChart = new Chart(ctx, {
@@ -3049,8 +3325,8 @@ function updateTimePieChart() {
         labels: labels,
         datasets: [{
           data: data,
-          backgroundColor: colors.slice(0, labels.length),
-          borderColor: isDark ? '#18181b' : '#ffffff',
+          backgroundColor: chartColors.pieColors.slice(0, labels.length),
+          borderColor: chartColors.pieBorder,
           borderWidth: 3,
           borderRadius: 4,
           hoverOffset: 8,
@@ -3064,7 +3340,7 @@ function updateTimePieChart() {
           legend: {
             position: 'right',
             labels: {
-              color: textColor,
+              color: chartColors.text,
               font: { size: 11, family: 'Inter' },
               usePointStyle: true,
               pointStyle: 'circle',
@@ -3072,10 +3348,10 @@ function updateTimePieChart() {
             }
           },
           tooltip: {
-            backgroundColor: isDark ? '#27272a' : '#ffffff',
-            titleColor: isDark ? '#e4e4e7' : '#18181b',
-            bodyColor: isDark ? '#a1a1aa' : '#71717a',
-            borderColor: isDark ? '#3f3f46' : '#e4e4e7',
+            backgroundColor: chartColors.tooltipBackground,
+            titleColor: chartColors.tooltipTitle,
+            bodyColor: chartColors.tooltipBody,
+            borderColor: chartColors.tooltipBorder,
             borderWidth: 1,
             padding: 10,
             cornerRadius: 8,

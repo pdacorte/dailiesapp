@@ -314,6 +314,47 @@ function createFakeCompletionDatabase(existingTasks) {
   }
 }
 
+function createFakeDeleteTaskDatabase(existingTasks) {
+  const deletedIds = []
+
+  return {
+    getDeletedIds: () => deletedIds,
+    transaction(stores, mode) {
+      assert.strictEqual(stores.length, 1)
+      assert.strictEqual(stores[0], "tasks")
+
+      if (mode === "readonly") {
+        return {
+          objectStore: () => ({
+            getAll: () => createSuccessRequest(existingTasks),
+          }),
+        }
+      }
+
+      assert.strictEqual(mode, "readwrite")
+
+      const writeTransaction = {}
+      Object.defineProperty(writeTransaction, "oncomplete", {
+        set(handler) {
+          if (typeof handler === "function") {
+            handler({ target: writeTransaction })
+          }
+        },
+      })
+      Object.defineProperty(writeTransaction, "onerror", { set() {} })
+
+      return Object.assign(writeTransaction, {
+        objectStore: () => ({
+          delete: (id) => {
+            deletedIds.push(id)
+            return {}
+          },
+        }),
+      })
+    },
+  }
+}
+
 async function main() {
   const appPath = path.join(__dirname, "..", "app.js")
   const appSource = fs.readFileSync(appPath, "utf8")
@@ -617,6 +658,92 @@ async function main() {
 
   await sandbox.completeTask(30)
   assert.strictEqual(parentCompletionGuardMessage, "Finish all subtasks before completing the parent task.")
+
+  const topLevelDeleteDatabase = createFakeDeleteTaskDatabase([
+    { id: 40, title: "Delete me", type: "Goal", status: false, startDate: "2026-05-18", endDate: null, sortOrder: 0 },
+  ])
+  const deleteTaskList = createTestElement("div")
+  deleteTaskList.id = "ongoing-tasks"
+  const deleteTaskElement = createTestElement("div")
+  deleteTaskElement.className = "task-item task-parent"
+  deleteTaskElement.dataset.taskId = "40"
+  deleteTaskElement.dataset.incompleteSubtasks = "0"
+  deleteTaskList.appendChild(deleteTaskElement)
+  let deleteFullRefreshCount = 0
+  let deleteOngoingRefreshCount = 0
+  let deleteHeightSyncCount = 0
+
+  sandbox.__topLevelDeleteDatabase = topLevelDeleteDatabase
+  vm.runInContext("db = __topLevelDeleteDatabase", sandbox)
+  sandbox.document.createElement = createTestElement
+  sandbox.document.getElementById = (id) => id === "ongoing-tasks" ? deleteTaskList : null
+  sandbox.document.querySelector = (selector) => deleteTaskList.querySelector(selector)
+  sandbox.updateDisplay = () => { deleteFullRefreshCount += 1 }
+  sandbox.updateOngoingTasks = () => { deleteOngoingRefreshCount += 1 }
+  sandbox.syncDashboardTaskCardHeight = () => { deleteHeightSyncCount += 1 }
+
+  sandbox.deleteTask(40)
+
+  assert.deepStrictEqual(topLevelDeleteDatabase.getDeletedIds(), [40])
+  assert.strictEqual(deleteFullRefreshCount, 0)
+  assert.strictEqual(deleteOngoingRefreshCount, 0)
+  assert.strictEqual(deleteHeightSyncCount, 1)
+  assert.strictEqual(deleteTaskElement.parentNode, null)
+  assert.ok(deleteTaskList.querySelector(".empty-state"))
+
+  const subtaskDeleteDatabase = createFakeDeleteTaskDatabase([
+    { id: 50, title: "Parent", type: "Goal", status: false, startDate: "2026-05-18", endDate: null, sortOrder: 0 },
+    { id: 51, title: "Remove child", type: "Goal", status: false, startDate: "2026-05-18", endDate: null, parentId: 50, subtaskOrder: 0 },
+  ])
+  const deleteParentElement = createTestElement("div")
+  deleteParentElement.className = "task-item task-parent"
+  deleteParentElement.dataset.taskId = "50"
+  deleteParentElement.dataset.incompleteSubtasks = "1"
+  const deleteParentRow = createTestElement("div")
+  deleteParentRow.className = "task-parent-row"
+  const deleteMetaActions = createTestElement("div")
+  deleteMetaActions.className = "task-meta-actions"
+  const deleteProgress = createTestElement("span")
+  deleteProgress.className = "subtask-progress"
+  deleteProgress.textContent = "0/1 done"
+  const deleteBadge = createTestElement("span")
+  deleteBadge.className = "task-type-badge goal"
+  deleteMetaActions.appendChild(deleteProgress)
+  deleteMetaActions.appendChild(deleteBadge)
+  deleteParentRow.appendChild(deleteMetaActions)
+  deleteParentElement.appendChild(deleteParentRow)
+  const deleteSubtaskList = createTestElement("div")
+  deleteSubtaskList.className = "subtask-list"
+  const deleteSubtaskElement = createTestElement("div")
+  deleteSubtaskElement.className = "subtask-item"
+  deleteSubtaskElement.dataset.taskId = "51"
+  deleteSubtaskList.appendChild(deleteSubtaskElement)
+  deleteParentElement.appendChild(deleteSubtaskList)
+  const deleteSubtaskForm = createTestElement("form")
+  deleteSubtaskForm.id = "subtask-form-50"
+  deleteParentElement.appendChild(deleteSubtaskForm)
+  let subtaskDeleteFullRefreshCount = 0
+  let subtaskDeleteOngoingRefreshCount = 0
+
+  sandbox.__subtaskDeleteDatabase = subtaskDeleteDatabase
+  vm.runInContext("db = __subtaskDeleteDatabase", sandbox)
+  sandbox.document.querySelector = (selector) => {
+    if (selector === '[data-task-id="50"]') return deleteParentElement
+    return deleteParentElement.querySelector(selector)
+  }
+  sandbox.document.getElementById = () => null
+  sandbox.updateDisplay = () => { subtaskDeleteFullRefreshCount += 1 }
+  sandbox.updateOngoingTasks = () => { subtaskDeleteOngoingRefreshCount += 1 }
+
+  sandbox.deleteTask(51)
+
+  assert.deepStrictEqual(subtaskDeleteDatabase.getDeletedIds(), [51])
+  assert.strictEqual(subtaskDeleteFullRefreshCount, 0)
+  assert.strictEqual(subtaskDeleteOngoingRefreshCount, 0)
+  assert.strictEqual(deleteSubtaskElement.parentNode, null)
+  assert.strictEqual(deleteParentElement.dataset.incompleteSubtasks, "0")
+  assert.strictEqual(deleteParentElement.querySelector(".subtask-progress"), null)
+  assert.strictEqual(deleteParentElement.querySelector(".subtask-list"), null)
 
   const fakeCompletionDatabase = createFakeCompletionDatabase([
     {
