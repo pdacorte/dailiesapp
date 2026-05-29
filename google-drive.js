@@ -22,7 +22,7 @@
 // -----------------------------------
 // 1. Go to https://console.cloud.google.com/
 // 2. Create a new project (e.g., "DailiesApp-Test")
-// 3. Enable "Google Drive API" in the API Library
+// 3. Enable "Google Drive API" and "Google Calendar API" in the API Library
 
 // STEP 2: Configure OAuth 2.0 Credentials
 // ---------------------------------------
@@ -44,13 +44,13 @@
 // ----------------------------
 // 1. Copy your Client ID
 // 2. Go to Settings in DailiesApp
-// 3. Paste your Client ID in the Google Drive API Key field
-// 4. Click "Save API Key"
+// 3. Paste your Client ID in the Google API Client ID field
+// 4. Click "Save Client ID"
 
 // TEST/DEVELOPMENT CONFIGURATION
 // ===============================
-// Note: The empty string below means "use API key from database"
-// When you save your API key in Settings, it will be loaded here.
+// Note: The empty string below means "use Client ID from database"
+// When you save your Client ID in Settings, it will be loaded here.
 
 const GOOGLE_DRIVE_CONFIG = {
   // Google OAuth 2.0 Client ID
@@ -68,8 +68,13 @@ const GOOGLE_DRIVE_CONFIG = {
     'email' // Email address
   ].join(' '),
   
-  // Discovery document for Google API
+  // Discovery documents for Google APIs
   DISCOVERY_DOC: 'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest',
+  CALENDAR_DISCOVERY_DOC: 'https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest',
+  DISCOVERY_DOCS: [
+    'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest',
+    'https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'
+  ],
   
   // App-specific folder name in Google Drive
   APP_FOLDER_NAME: 'DailiesApp Backups',
@@ -130,7 +135,7 @@ function initializeGoogleApis() {
         try {
           await gapi.client.init({
             apiKey: '', // API key not needed for OAuth 2.0
-            discoveryDocs: [GOOGLE_DRIVE_CONFIG.DISCOVERY_DOC],
+            discoveryDocs: GOOGLE_DRIVE_CONFIG.DISCOVERY_DOCS || [GOOGLE_DRIVE_CONFIG.DISCOVERY_DOC],
           });
           gapiInited = true;
           gapiLoaded = true;
@@ -322,7 +327,8 @@ function getConfigStatus() {
     hasGapi: typeof gapi !== 'undefined',
     hasGoogle: typeof google !== 'undefined',
     hasGapiClient: typeof gapi !== 'undefined' && typeof gapi.client !== 'undefined',
-    hasGapiDrive: typeof gapi !== 'undefined' && typeof gapi.client !== 'undefined' && typeof gapi.client.drive !== 'undefined'
+    hasGapiDrive: typeof gapi !== 'undefined' && typeof gapi.client !== 'undefined' && typeof gapi.client.drive !== 'undefined',
+    hasGapiCalendar: typeof gapi !== 'undefined' && typeof gapi.client !== 'undefined' && typeof gapi.client.calendar !== 'undefined'
   };
 }
 

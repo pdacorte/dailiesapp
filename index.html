@@ -171,6 +171,12 @@
                                     <h2 class="text-lg font-semibold text-zinc-900 dark:text-white">Ongoing Tasks</h2>
                                     <span class="text-xs font-medium text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Active</span>
                                 </div>
+                                <div id="focus-zone" class="focus-zone is-empty" aria-label="Focus task drop zone">
+                                    <div class="focus-zone-placeholder">
+                                        <span class="material-symbols-outlined">center_focus_strong</span>
+                                        <span>Drag a task here to focus on it</span>
+                                    </div>
+                                </div>
                                 <div id="ongoing-tasks" class="ongoing-tasks-list space-y-2 mb-6 min-h-[48px] max-h-[400px] overflow-y-auto custom-scrollbar"></div>
 
                                 <!-- Add Task Form -->
@@ -263,12 +269,23 @@
                                         <span class="material-symbols-outlined text-lg">coffee</span>
                                         Short Break
                                     </button>
-                                    <button id="long-break-btn" onclick="startPomodoroMode('longBreak')"
-                                            class="pomodoro-btn pomodoro-btn-long" aria-pressed="false">
-                                        <span class="material-symbols-outlined text-lg">self_improvement</span>
-                                        Long Break
-                                    </button>
-                                </div>
+                                     <button id="long-break-btn" onclick="startPomodoroMode('longBreak')"
+                                             class="pomodoro-btn pomodoro-btn-long" aria-pressed="false">
+                                         <span class="material-symbols-outlined text-lg">self_improvement</span>
+                                         Long Break
+                                     </button>
+                                     <div class="focus-noise-wrap">
+                                         <button id="focus-noise-btn" onclick="toggleFocusNoise()"
+                                                 class="pomodoro-btn pomodoro-btn-focus" aria-pressed="false"
+                                                 title="Loop focus noise">
+                                             <span class="material-symbols-outlined text-lg">graphic_eq</span>
+                                             Focus Noise
+                                         </button>
+                                         <input type="range" id="focus-noise-volume" class="focus-noise-volume"
+                                                min="0" max="100" value="50" step="1"
+                                                aria-label="Focus noise volume" title="Focus noise volume">
+                                     </div>
+                                 </div>
                                 <div class="pomodoro-readout">
                                      <div id="timer-display" class="timer-display">
                                         25:00
@@ -304,9 +321,25 @@
 
                     <!-- ===== CALENDAR SECTION ===== -->
                     <div id="calendar-section" class="mt-6 animate-slide-up" style="animation-delay: 0.15s">
-                        <div class="card overflow-hidden p-0">
-                            <iframe src="https://calendar.google.com/calendar/embed?src=3affb7794a32640ea8df6025a69c72c648d7a76bc853969c65afbac27112029c%40group.calendar.google.com&height=600&wkst=1&ctz=Europe%2FBerlin&showPrint=0&showCalendars=0&showDate=0&showNav=0&showTitle=0&showTz=0&mode=AGENDA&&color=%238e24aa"
-                                    style="border-width:0" width="100%" height="600" frameborder="0" scrolling="no" class="rounded-2xl"></iframe>
+                        <div class="card">
+                            <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-6">
+                                <div>
+                                    <h2 class="text-xl font-semibold text-zinc-900 dark:text-white">Google Calendar</h2>
+                                    <p id="calendar-account-summary" class="text-sm text-zinc-500 dark:text-zinc-400 mt-1">Not connected</p>
+                                </div>
+                                <button id="calendar-refresh-button" type="button" class="btn-ghost h-9 px-4 text-sm inline-flex items-center gap-2">
+                                    <span class="material-symbols-outlined text-lg">refresh</span>
+                                    Refresh
+                                </button>
+                            </div>
+                            <div id="calendar-content" class="min-h-[320px]">
+                                <div class="flex flex-col items-center justify-center py-12 text-center">
+                                    <span class="material-symbols-outlined text-5xl text-indigo-400 mb-4">calendar_add_on</span>
+                                    <h3 class="text-lg font-semibold text-zinc-900 dark:text-white">Connect your Google Calendar</h3>
+                                    <p class="mt-2 max-w-md text-sm text-zinc-500 dark:text-zinc-400">Connect Calendar from Settings to show the signed-in user's upcoming events.</p>
+                                    <button type="button" onclick="setActiveView('settings')" class="btn-primary h-10 px-4 mt-5 text-sm">Open Settings</button>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -373,24 +406,46 @@
                             <div class="space-y-8">
                                 <!-- Google Drive Integration -->
                                 <div class="pb-6 border-b border-zinc-100 dark:border-zinc-800">
-                                    <h3 class="text-base font-semibold text-zinc-900 dark:text-white mb-2">Google Drive Integration</h3>
+                                    <h3 class="text-base font-semibold text-zinc-900 dark:text-white mb-2">Google API Client ID</h3>
                                     <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-4">
-                                        Enter your Google Drive API Client ID to enable cloud backup.
+                                        Enter your OAuth Client ID to enable Google Drive backup and read-only Google Calendar access.
                                         <a href="https://console.cloud.google.com/" target="_blank" class="text-indigo-500 hover:text-indigo-600 underline underline-offset-2 transition-colors">Get your Client ID</a>
                                     </p>
                                     <div class="space-y-4">
                                         <div>
-                                            <label for="google-drive-api-key" class="label-text">Google Drive API Client ID</label>
-                                            <input type="password" id="google-drive-api-key" placeholder="Enter your Client ID"
+                                            <label for="google-drive-api-key" class="label-text">Google API Client ID</label>
+                                            <input type="password" id="google-drive-api-key" placeholder="Enter your OAuth Client ID"
                                                    class="input-field w-full mt-1">
                                             <p class="text-xs text-zinc-400 mt-1.5">Stored securely in your browser's database.</p>
                                         </div>
                                         <div class="flex flex-wrap gap-2">
-                                            <button onclick="saveGoogleDriveApiKey()" class="btn-primary h-9 px-4 text-sm">Save Key</button>
+                                            <button onclick="saveGoogleDriveApiKey()" class="btn-primary h-9 px-4 text-sm">Save Client ID</button>
                                             <button onclick="testGoogleDriveApiKey()" class="btn-success h-9 px-4 text-sm">Test Connection</button>
-                                            <button onclick="clearGoogleDriveApiKey()" class="btn-ghost h-9 px-4 text-sm">Clear Key</button>
+                                            <button onclick="clearGoogleDriveApiKey()" class="btn-ghost h-9 px-4 text-sm">Clear Client ID</button>
                                         </div>
                                         <div id="api-key-status" class="hidden p-3 rounded-xl text-sm"></div>
+                                    </div>
+                                </div>
+
+                                <!-- Google Calendar Integration -->
+                                <div class="pb-6 border-b border-zinc-100 dark:border-zinc-800">
+                                    <h3 class="text-base font-semibold text-zinc-900 dark:text-white mb-2">Google Calendar</h3>
+                                    <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-4">
+                                        Connect the user's Google Calendar in read-only mode. Events appear in the Calendar tab without using any hard-coded personal calendar.
+                                    </p>
+                                    <div class="space-y-4">
+                                        <div id="calendar-auth-status"></div>
+                                        <div id="calendar-selector-wrap" class="hidden" hidden>
+                                            <label for="google-calendar-select" class="label-text">Calendar to Display</label>
+                                            <select id="google-calendar-select" class="input-field w-full mt-1 text-sm"></select>
+                                            <p class="text-xs text-zinc-400 mt-1.5">Defaults to the signed-in user's primary calendar.</p>
+                                        </div>
+                                        <div class="flex flex-wrap gap-2">
+                                            <button id="google-calendar-connect" type="button" class="btn-primary h-9 px-4 text-sm">Connect Calendar</button>
+                                            <button id="google-calendar-settings-refresh" type="button" class="btn-success h-9 px-4 text-sm hidden" hidden style="display: none;">Refresh Calendars</button>
+                                            <button id="google-calendar-disconnect" type="button" class="btn-ghost h-9 px-4 text-sm hidden" hidden style="display: none;">Disconnect</button>
+                                        </div>
+                                        <div id="calendar-settings-status" class="hidden p-3 rounded-xl text-sm"></div>
                                     </div>
                                 </div>
 
@@ -620,6 +675,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="google-drive.js"></script>
+    <script src="google-calendar.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

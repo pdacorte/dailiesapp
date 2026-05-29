@@ -127,3 +127,23 @@ body {
 .animate-scale-in {
   animation: scaleIn 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
+
+/* Highlight pulse for a newly added task */
+@keyframes taskAddedHighlight {
+  0% {
+    box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.5);
+    background-color: rgba(99, 102, 241, 0.12);
+  }
+  60% {
+    box-shadow: 0 0 0 6px rgba(99, 102, 241, 0);
+    background-color: rgba(99, 102, 241, 0.08);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(99, 102, 241, 0);
+    background-color: transparent;
+  }
+}
+
+.task-added-highlight {
+  animation: taskAddedHighlight 1.2s ease-out both;
+}

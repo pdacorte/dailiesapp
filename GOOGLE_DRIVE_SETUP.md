@@ -9,12 +9,15 @@ To enable Google Drive sync in DailiesApp, you need to set up Google API credent
 3. Enter a project name (e.g., "DailiesApp Sync")
 4. Click "Create"
 
-## Step 2: Enable Google Drive API
+## Step 2: Enable Google APIs
 
 1. In your new project, go to "APIs & Services" → "Library"
 2. Search for "Google Drive API"
 3. Click on "Google Drive API"
 4. Click "Enable"
+5. Search for "Google Calendar API"
+6. Click on "Google Calendar API"
+7. Click "Enable"
 
 ## Step 3: Create OAuth 2.0 Credentials
 
@@ -81,7 +84,7 @@ CLIENT_ID: 'xxxxxxxxxxxx-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.apps.googleusercontent
    - For localhost testing, use `http://localhost/google-drive-callback.html`
 
 3. **"API not enabled" error**
-   - Go back to Step 2 and make sure Google Drive API is enabled
+   - Go back to Step 2 and make sure Google Drive API and Google Calendar API are enabled
 
 4. **"Origin not allowed" error**
    - Make sure you added your origin (localhost or domain) to Authorized JavaScript origins
@@ -99,6 +102,7 @@ CLIENT_ID: 'xxxxxxxxxxxx-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.apps.googleusercontent
 The app requests these permissions:
 - `drive.file` - Access to files created by the app
 - `drive.appdata` - Access to app-specific folder
+- `calendar.readonly` - Read-only access to the signed-in user's calendars and events
 - `profile` - Basic profile information
 - `email` - Email address
 

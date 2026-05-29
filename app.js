@@ -10,6 +10,9 @@ let expectedTasksPerDay = 1
 let draggedElement = null
 let draggedTaskId = null
 
+// Focus Task feature: cached focused task id (mirrors settings store key "focusedTaskId")
+let focusedTaskId = null
+
 // Time tracker variables
 let timerInterval = null
 let timerStartTime = null
@@ -366,31 +369,12 @@ document.addEventListener("DOMContentLoaded", async () => {
   setupEventListeners()
   checkAutoBackup()
   setupAutoSave()
-  
-  // Load Google Drive API key on startup
-  setTimeout(async () => {
-    const apiKey = await loadGoogleDriveApiKey();
-    if (apiKey) {
-      updateGoogleDriveConfigWithKey(apiKey);
-      console.log('Google Drive API key loaded from database');
-      
-      // Check for stored user info and update display
-      try {
-        if (typeof getUserInfo === 'function') {
-          const userInfo = await getUserInfo();
-          if (userInfo) {
-            updateUserInfoDisplay(userInfo);
-          }
-        }
-      } catch (error) {
-        console.log('Could not load user info:', error.message);
-      }
-    }
-  }, 1000);
 })
 
 // Make database accessible to Google Drive functions
 window.getDatabase = () => db;
+window.getSettingValue = getSettingValue;
+window.setSettingValue = setSettingValue;
 
 // Initialize IndexedDB database and create object stores if needed
 function initializeDB() {
@@ -456,9 +440,41 @@ function initializeDB() {
   request.onsuccess = (event) => {
     console.log("Database initialized successfully")
     db = event.target.result
-    updateDisplay()
+    loadFocusedTaskId().finally(() => {
+      updateDisplay()
+    })
     updateTimeTrackerDisplay()
     startDailyAlertScheduler()
+    loadGoogleIntegrationsOnStartup()
+  }
+}
+
+async function loadGoogleIntegrationsOnStartup() {
+  let apiKey = null;
+  try {
+    apiKey = await loadGoogleDriveApiKey();
+  } catch (error) {
+    console.error('Could not load Google API Client ID:', error);
+  }
+
+  if (apiKey) {
+    updateGoogleDriveConfigWithKey(apiKey);
+    console.log('Google API Client ID loaded from database');
+
+    try {
+      if (typeof getUserInfo === 'function') {
+        const userInfo = await getUserInfo();
+        if (userInfo) {
+          updateUserInfoDisplay(userInfo);
+        }
+      }
+    } catch (error) {
+      console.log('Could not load Google Drive user info:', error.message);
+    }
+  }
+
+  if (typeof refreshGoogleCalendarEvents === 'function') {
+    refreshGoogleCalendarEvents({ showLoading: false });
   }
 }
 
@@ -604,6 +620,10 @@ function setActiveView(view) {
   // Update completed tasks display based on view
   updateCompletedTasks()
   syncDashboardTaskCardHeight()
+
+  if ((view === "calendar" || view === "dashboard") && typeof refreshGoogleCalendarEvents === "function") {
+    refreshGoogleCalendarEvents({ showLoading: view === "calendar" })
+  }
 }
 
 function showHelp() {
@@ -673,6 +693,8 @@ function setupEventListeners() {
     addTask()
   })
 
+  setupFocusZoneDragAndDrop()
+
   document.getElementById("theme-toggle").addEventListener("click", toggleTheme)
   
   // Add listener for expected tasks input
@@ -702,6 +724,31 @@ function setupEventListeners() {
   const alertChannel = document.getElementById("alert-channel")
   if (alertChannel) {
     alertChannel.addEventListener("change", updateAlertChannelVisibility)
+  }
+
+  const calendarRefreshButton = document.getElementById("calendar-refresh-button")
+  if (calendarRefreshButton && typeof refreshGoogleCalendarEvents === "function") {
+    calendarRefreshButton.addEventListener("click", () => refreshGoogleCalendarEvents({ showLoading: true }))
+  }
+
+  const calendarConnectButton = document.getElementById("google-calendar-connect")
+  if (calendarConnectButton && typeof connectGoogleCalendarFromSettings === "function") {
+    calendarConnectButton.addEventListener("click", connectGoogleCalendarFromSettings)
+  }
+
+  const calendarDisconnectButton = document.getElementById("google-calendar-disconnect")
+  if (calendarDisconnectButton && typeof disconnectGoogleCalendarFromSettings === "function") {
+    calendarDisconnectButton.addEventListener("click", disconnectGoogleCalendarFromSettings)
+  }
+
+  const calendarSettingsRefreshButton = document.getElementById("google-calendar-settings-refresh")
+  if (calendarSettingsRefreshButton && typeof loadGoogleCalendarSettingsUI === "function") {
+    calendarSettingsRefreshButton.addEventListener("click", loadGoogleCalendarSettingsUI)
+  }
+
+  const calendarSelect = document.getElementById("google-calendar-select")
+  if (calendarSelect && typeof saveSelectedGoogleCalendar === "function") {
+    calendarSelect.addEventListener("change", saveSelectedGoogleCalendar)
   }
 
   const routinesForm = document.getElementById("routines-form")
@@ -1113,6 +1160,57 @@ function getSubtasksForParent(tasks, parentId) {
 
 function getTopLevelTasks(tasks) {
   return tasks.filter((task) => !hasParentTask(task))
+}
+
+// Focus Task helpers --------------------------------------------------------
+
+// Load the persisted focused task id from the settings store into the cache.
+async function loadFocusedTaskId() {
+  try {
+    const stored = await getSettingValue("focusedTaskId")
+    const numeric = Number(stored)
+    focusedTaskId = stored !== null && stored !== undefined && !Number.isNaN(numeric) ? numeric : null
+  } catch (error) {
+    console.error("Could not load focused task id:", error)
+    focusedTaskId = null
+  }
+  return focusedTaskId
+}
+
+// Persist the focused task id (or null to clear) and update the cache.
+function setFocusedTaskId(id) {
+  const numeric = id === null || id === undefined ? null : Number(id)
+  focusedTaskId = numeric !== null && !Number.isNaN(numeric) ? numeric : null
+  if (typeof setSettingValue === "function" && db) {
+    setSettingValue("focusedTaskId", focusedTaskId).catch((error) => {
+      console.error("Could not persist focused task id:", error)
+    })
+  }
+}
+
+// Clear focus if the given task id is currently focused (used on delete/complete).
+function clearFocusIfMatches(taskId) {
+  if (focusedTaskId !== null && Number(taskId) === focusedTaskId) {
+    setFocusedTaskId(null)
+  }
+}
+
+// Move a task into the focus zone (drag/drop or button). Re-renders the list.
+function focusTask(taskId) {
+  const numeric = Number(taskId)
+  if (Number.isNaN(numeric)) return
+  if (focusedTaskId === numeric) return
+  setFocusedTaskId(numeric)
+  updateOngoingTasks(false)
+  syncDashboardTaskCardHeight()
+}
+
+// Remove the focused task back into the regular ongoing list.
+function unfocusTask() {
+  if (focusedTaskId === null) return
+  setFocusedTaskId(null)
+  updateOngoingTasks(false)
+  syncDashboardTaskCardHeight()
 }
 
 // Add a new task to the database
@@ -1821,9 +1919,21 @@ async function completeTask(taskId) {
       return
     }
 
+    // Completion is proceeding: if this is the focused task, clear focus so the
+    // zone resets after the completion animation. Subtasks keep parent focus.
+    const wasFocused = !mutation.isSubtask && focusedTaskId !== null && numericTaskId === focusedTaskId
+    if (wasFocused) {
+      setFocusedTaskId(null)
+    }
+
     patch = applyOptimisticTaskCompletion(mutation)
     const result = await persistTaskCompletion(mutation)
     finalizeOptimisticTaskCompletion(mutation, patch, result)
+
+    if (wasFocused) {
+      // The focused element animates out from the zone; restore the placeholder.
+      renderFocusZone(null, [])
+    }
   } catch (error) {
     console.error("Error completing task:", error)
     rollbackOptimisticTaskCompletion(patch)
@@ -1914,8 +2024,36 @@ function updateDisplayAfterTaskAdd(task) {
   }
 
   const taskIndex = taskList.querySelectorAll(".task-parent").length
-  taskList.appendChild(createOngoingTaskElement(task, [task], taskIndex, false))
+  const newTaskElement = createOngoingTaskElement(task, [task], taskIndex, false)
+  taskList.appendChild(newTaskElement)
   syncDashboardTaskCardHeight()
+
+  // Animate the page to the newly added task and briefly highlight it.
+  requestAnimationFrame(() => {
+    if (typeof newTaskElement.scrollIntoView === "function") {
+      try {
+        newTaskElement.scrollIntoView({ behavior: "smooth", block: "nearest" })
+      } catch (error) {
+        try {
+          newTaskElement.scrollIntoView()
+        } catch (innerError) {
+          /* scrollIntoView unsupported (e.g. test env) */
+        }
+      }
+    }
+    if (newTaskElement.classList && typeof newTaskElement.classList.add === "function") {
+      newTaskElement.classList.add("task-added-highlight")
+      if (typeof newTaskElement.addEventListener === "function") {
+        newTaskElement.addEventListener("animationend", () => {
+          newTaskElement.classList.remove("task-added-highlight")
+        }, { once: true })
+      }
+      // Fallback removal in case animationend doesn't fire.
+      setTimeout(() => {
+        newTaskElement.classList.remove("task-added-highlight")
+      }, 1500)
+    }
+  })
 }
 
 function syncDashboardTaskCardHeight() {
@@ -2017,7 +2155,7 @@ function updateTodayCompletionCount() {
   }
 }
 
-function createOngoingTaskElement(task, allTasks, index, animate = true) {
+function createOngoingTaskElement(task, allTasks, index, animate = true, isFocused = false) {
   const subtasks = getSubtasksForParent(allTasks, task.id)
   const incompleteSubtasks = subtasks.filter((subtask) => !subtask.status)
   const completedSubtasks = subtasks.length - incompleteSubtasks.length
@@ -2040,12 +2178,23 @@ function createOngoingTaskElement(task, allTasks, index, animate = true) {
       ? `<div class="subtask-list"><div class="subtask-empty">All subtasks complete</div></div>`
       : ""
   const taskElement = document.createElement("div")
-  taskElement.className = animate ? "task-item task-parent stagger-" + Math.min(index + 1, 8) : "task-item task-parent"
+  let className = animate ? "task-item task-parent stagger-" + Math.min(index + 1, 8) : "task-item task-parent"
+  if (isFocused) {
+    className += " task-focused"
+  }
+  taskElement.className = className
   taskElement.draggable = true
   taskElement.dataset.taskId = task.id
   taskElement.dataset.incompleteSubtasks = incompleteSubtasks.length
   taskElement.dataset.sortOrder = task.sortOrder !== undefined ? task.sortOrder : index
   const badgeClass = task.type === 'Non-Negotiable' ? 'non-negotiable' : 'goal'
+  const focusButtonHTML = isFocused
+    ? `<button type="button" onclick="unfocusTask()" class="focus-toggle-btn is-focused" title="Remove from focus">
+                    <span class="material-symbols-outlined text-base">center_focus_strong</span>
+                  </button>`
+    : `<button type="button" onclick="focusTask(${task.id})" class="focus-toggle-btn" title="Focus on this task">
+                    <span class="material-symbols-outlined text-base">center_focus_weak</span>
+                  </button>`
   taskElement.innerHTML = `
               <div class="task-parent-row">
                 <span class="material-symbols-outlined drag-handle text-lg">drag_indicator</span>
@@ -2053,7 +2202,9 @@ function createOngoingTaskElement(task, allTasks, index, animate = true) {
                 <span class="task-title-text">${escapeHTML(task.title)}</span>
                 <div class="task-meta-actions">
                   ${progressHTML}
+                  ${isFocused ? '<span class="focus-badge">Focus</span>' : ''}
                   <span class="task-type-badge ${badgeClass}">${task.type}</span>
+                  ${focusButtonHTML}
                   <button type="button" onclick="toggleSubtaskForm(${task.id})" class="subtask-toggle-btn" title="Add subtask" aria-controls="subtask-form-${task.id}">
                     <span class="material-symbols-outlined text-base">add_task</span>
                     <span class="subtask-toggle-text">Subtask</span>
@@ -2082,6 +2233,27 @@ function createOngoingTaskElement(task, allTasks, index, animate = true) {
   taskElement.addEventListener('dragleave', handleDragLeave)
 
   return taskElement
+}
+
+// Render the focus zone: either the focused task element or the empty placeholder.
+function renderFocusZone(focusedTask, allTasks) {
+  const focusZone = document.getElementById("focus-zone")
+  if (!focusZone) return
+
+  const placeholderHTML = `
+            <div class="focus-zone-placeholder">
+              <span class="material-symbols-outlined">center_focus_strong</span>
+              <span>Drag a task here to focus on it</span>
+            </div>`
+
+  if (focusedTask) {
+    focusZone.classList.remove("is-empty")
+    focusZone.innerHTML = ""
+    focusZone.appendChild(createOngoingTaskElement(focusedTask, allTasks, 0, false, true))
+  } else {
+    focusZone.classList.add("is-empty")
+    focusZone.innerHTML = placeholderHTML
+  }
 }
 
 // Update the list of ongoing (uncompleted) tasks
@@ -2121,8 +2293,23 @@ function updateOngoingTasks(animate = true) {
 
       console.log("Filtered and sorted ongoing tasks:", tasks)
 
+      // Split out the focused task (if any) so it renders in the focus zone.
+      const focusedTask = focusedTaskId !== null
+        ? tasks.find((task) => task.id === focusedTaskId)
+        : null
+      if (focusedTaskId !== null && !focusedTask) {
+        // Focused task no longer active (completed/deleted/became subtask) -> clear.
+        setFocusedTaskId(null)
+      }
+      if (focusedTask) {
+        tasks = tasks.filter((task) => task.id !== focusedTask.id)
+      }
+      renderFocusZone(focusedTask, allTasks)
+
       if (tasks.length === 0) {
-        taskList.innerHTML = '<div class="empty-state"><span class="material-symbols-outlined">inventory_2</span>No ongoing tasks. Add one below!</div>'
+        taskList.innerHTML = focusedTask
+          ? ''
+          : '<div class="empty-state"><span class="material-symbols-outlined">inventory_2</span>No ongoing tasks. Add one below!</div>'
         syncDashboardTaskCardHeight()
         return
       }
@@ -2614,13 +2801,22 @@ function deleteTask(taskId) {
 
     writeTransaction.oncomplete = () => {
       console.log("Task deleted successfully")
+      const deletedFocusIds = new Set([task.id, ...childTasks.map((c) => c.id)])
+      const wasFocused = focusedTaskId !== null && deletedFocusIds.has(focusedTaskId)
       try {
         if (!patchDeletedTaskFromDOM(task, childTasks, allTasks)) {
           console.error("Could not patch deleted task from DOM; refreshing display.")
+          if (wasFocused) setFocusedTaskId(null)
           updateDisplay()
+          return
+        }
+        if (wasFocused) {
+          setFocusedTaskId(null)
+          renderFocusZone(null, [])
         }
       } catch (error) {
         console.error("Error patching deleted task:", error)
+        if (wasFocused) setFocusedTaskId(null)
         updateDisplay()
       }
     }
@@ -2671,7 +2867,15 @@ function handleDrop(e) {
   }
   
   this.classList.remove('drag-over')
-  
+
+  // If the dragged item is the focused task being dropped onto a list task,
+  // unfocus it (it returns to the regular list and re-renders).
+  if (draggedTaskId !== null && draggedTaskId === focusedTaskId) {
+    if (e.stopPropagation) e.stopPropagation()
+    unfocusTask()
+    return false
+  }
+
   if (draggedElement !== this) {
     // Get all task elements
     const taskList = document.getElementById("ongoing-tasks")
@@ -2680,6 +2884,11 @@ function handleDrop(e) {
     // Find positions
     const draggedIndex = allTasks.indexOf(draggedElement)
     const targetIndex = allTasks.indexOf(this)
+
+    // Guard against elements not in the list (e.g. focus zone) -> skip reorder
+    if (draggedIndex === -1 || targetIndex === -1) {
+      return false
+    }
     
     // Reorder DOM elements
     if (draggedIndex < targetIndex) {
@@ -2704,6 +2913,77 @@ function handleDragEnd(e) {
   allTasks.forEach(task => {
     task.classList.remove('drag-over')
   })
+
+  const focusZone = document.getElementById("focus-zone")
+  if (focusZone) {
+    focusZone.classList.remove("drag-over")
+  }
+  const ongoingList = document.getElementById("ongoing-tasks")
+  if (ongoingList) {
+    ongoingList.classList.remove("drag-over")
+  }
+}
+
+// Wire up drag/drop on the focus zone (to focus) and the ongoing list (to unfocus).
+function setupFocusZoneDragAndDrop() {
+  const focusZone = document.getElementById("focus-zone")
+  if (focusZone) {
+    focusZone.addEventListener("dragover", (e) => {
+      e.preventDefault()
+      if (e.dataTransfer) e.dataTransfer.dropEffect = "move"
+    })
+    focusZone.addEventListener("dragenter", (e) => {
+      e.preventDefault()
+      if (draggedTaskId !== null && draggedTaskId !== focusedTaskId) {
+        focusZone.classList.add("drag-over")
+      }
+    })
+    focusZone.addEventListener("dragleave", (e) => {
+      // Only clear if leaving the zone entirely (not entering a child).
+      if (!focusZone.contains(e.relatedTarget)) {
+        focusZone.classList.remove("drag-over")
+      }
+    })
+    focusZone.addEventListener("drop", (e) => {
+      e.preventDefault()
+      if (e.stopPropagation) e.stopPropagation()
+      focusZone.classList.remove("drag-over")
+      if (draggedTaskId !== null && draggedTaskId !== focusedTaskId) {
+        focusTask(draggedTaskId)
+      }
+    })
+  }
+
+  const ongoingList = document.getElementById("ongoing-tasks")
+  if (ongoingList) {
+    ongoingList.addEventListener("dragover", (e) => {
+      // Allow dropping the focused task back into the list.
+      if (draggedTaskId !== null && draggedTaskId === focusedTaskId) {
+        e.preventDefault()
+        if (e.dataTransfer) e.dataTransfer.dropEffect = "move"
+      }
+    })
+    ongoingList.addEventListener("dragenter", (e) => {
+      if (draggedTaskId !== null && draggedTaskId === focusedTaskId) {
+        ongoingList.classList.add("drag-over")
+      }
+    })
+    ongoingList.addEventListener("dragleave", (e) => {
+      if (!ongoingList.contains(e.relatedTarget)) {
+        ongoingList.classList.remove("drag-over")
+      }
+    })
+    ongoingList.addEventListener("drop", (e) => {
+      ongoingList.classList.remove("drag-over")
+      // If the dragged item is the focused task and it was dropped on empty list
+      // space (not handled by a task element's own drop), unfocus it.
+      if (draggedTaskId !== null && draggedTaskId === focusedTaskId) {
+        e.preventDefault()
+        if (e.stopPropagation) e.stopPropagation()
+        unfocusTask()
+      }
+    })
+  }
 }
 
 // Save the current task order to database
@@ -3689,17 +3969,17 @@ async function syncWithCloud() {
     return;
   }
 
-  // Check if Google Drive API key is configured
+  // Check if Google API Client ID is configured
   const apiKey = await loadGoogleDriveApiKey();
-  console.log('Loaded API key:', apiKey ? 'Yes' : 'No');
+  console.log('Loaded Google API Client ID:', apiKey ? 'Yes' : 'No');
   
   if (!apiKey) {
-    alert("Google Drive API key not configured. Please go to Settings to add your Google Drive API Client ID.");
+    alert("Google API Client ID not configured. Please go to Settings to add your OAuth Client ID.");
     return;
   }
 
-  // Update Google Drive configuration with the API key
-  updateGoogleDriveConfig(apiKey);
+  // Update Google Drive configuration with the Client ID
+  updateGoogleDriveConfigWithKey(apiKey);
   console.log('Google Drive config updated');
 
   // Check if Google Drive functions are available
@@ -3719,7 +3999,7 @@ async function syncWithCloud() {
       }
     } catch (error) {
       console.error('Failed to initialize Google APIs:', error);
-      alert(`Failed to initialize Google Drive: ${error.message}. Please check your API key and internet connection.`);
+      alert(`Failed to initialize Google Drive: ${error.message}. Please check your Client ID and internet connection.`);
       return;
     }
   }
@@ -3957,7 +4237,7 @@ async function saveGoogleDriveApiKey() {
   const apiKey = apiKeyInput.value.trim();
   
   if (!apiKey) {
-    showApiKeyStatus('Please enter a valid Google Drive API Client ID', 'error');
+    showApiKeyStatus('Please enter a valid Google API Client ID', 'error');
     return;
   }
   
@@ -3978,22 +4258,26 @@ async function saveGoogleDriveApiKey() {
     
     const request = settingsStore.put(setting);
     
-    request.onsuccess = () => {
-      showApiKeyStatus('Google Drive API key saved successfully!', 'success');
+    request.onsuccess = async () => {
+      showApiKeyStatus('Google API Client ID saved successfully!', 'success');
       apiKeyInput.value = ''; // Clear the input for security
       
       // Update Google Drive configuration
       updateGoogleDriveConfigWithKey(apiKey);
+
+      if (typeof loadGoogleCalendarSettingsUI === 'function') {
+        await loadGoogleCalendarSettingsUI();
+      }
     };
     
     request.onerror = (event) => {
       console.error('Error saving API key:', event.target.error);
-      showApiKeyStatus('Error saving API key. Please try again.', 'error');
+      showApiKeyStatus('Error saving Client ID. Please try again.', 'error');
     };
     
   } catch (error) {
     console.error('Error saving API key:', error);
-    showApiKeyStatus('Error saving API key. Please try again.', 'error');
+    showApiKeyStatus('Error saving Client ID. Please try again.', 'error');
   }
 }
 
@@ -4026,7 +4310,7 @@ async function loadGoogleDriveApiKey() {
 
 // Clear Google Drive API key from database
 async function clearGoogleDriveApiKey() {
-  if (!confirm('Are you sure you want to clear your Google Drive API key? This will disable Google Drive sync.')) {
+  if (!confirm('Are you sure you want to clear your Google API Client ID? This will disable Google Drive sync and Google Calendar.')) {
     return;
   }
   
@@ -4040,22 +4324,35 @@ async function clearGoogleDriveApiKey() {
     const settingsStore = transaction.objectStore('settings');
     const request = settingsStore.delete('googleDriveApiKey');
     
-    request.onsuccess = () => {
-      showApiKeyStatus('Google Drive API key cleared successfully.', 'success');
+    request.onsuccess = async () => {
+      showApiKeyStatus('Google API Client ID cleared successfully.', 'success');
       document.getElementById('google-drive-api-key').value = '';
       
-      // Clear Google Drive configuration
-      updateGoogleDriveConfig('');
+      if (typeof window.GOOGLE_DRIVE_CONFIG !== 'undefined') {
+        window.GOOGLE_DRIVE_CONFIG.CLIENT_ID = '';
+      }
+
+      if (typeof signOutFromGoogleCalendar === 'function') {
+        signOutFromGoogleCalendar();
+      }
+
+      if (typeof loadGoogleCalendarSettingsUI === 'function') {
+        await loadGoogleCalendarSettingsUI();
+      }
+
+      if (typeof renderGoogleCalendarConnectState === 'function') {
+        renderGoogleCalendarConnectState('Save a Google API Client ID in Settings before connecting Calendar.');
+      }
     };
     
     request.onerror = (event) => {
       console.error('Error clearing API key:', event.target.error);
-      showApiKeyStatus('Error clearing API key. Please try again.', 'error');
+      showApiKeyStatus('Error clearing Client ID. Please try again.', 'error');
     };
     
   } catch (error) {
     console.error('Error clearing API key:', error);
-    showApiKeyStatus('Error clearing API key. Please try again.', 'error');
+    showApiKeyStatus('Error clearing Client ID. Please try again.', 'error');
   }
 }
 
@@ -4064,11 +4361,11 @@ async function testGoogleDriveApiKey() {
   const apiKey = await loadGoogleDriveApiKey();
   
   if (!apiKey) {
-    showApiKeyStatus('No API key found. Please save your Google Drive API key first.', 'error');
+    showApiKeyStatus('No Client ID found. Please save your Google API Client ID first.', 'error');
     return;
   }
   
-  showApiKeyStatus('Testing Google Drive API connection...', 'info');
+  showApiKeyStatus('Testing Google API connection...', 'info');
   
   // Update configuration with the loaded key
   updateGoogleDriveConfigWithKey(apiKey);
@@ -4077,9 +4374,9 @@ async function testGoogleDriveApiKey() {
   try {
     if (typeof initializeGoogleApis === 'function') {
       await initializeGoogleApis();
-      showApiKeyStatus('Google Drive API connection successful!', 'success');
+      showApiKeyStatus('Google API connection successful!', 'success');
     } else {
-      showApiKeyStatus('Google Drive API functions not loaded. Please refresh the page.', 'error');
+      showApiKeyStatus('Google API functions not loaded. Please refresh the page.', 'error');
     }
   } catch (error) {
     console.error('Error testing API key:', error);
@@ -4125,7 +4422,7 @@ function showApiKeyStatus(message, type = 'info') {
       <span class="material-symbols-outlined mr-2">
         ${type === 'success' ? 'check_circle' : type === 'error' ? 'error' : 'info'}
       </span>
-      <span>${message}</span>
+      <span>${escapeHTML(message)}</span>
     </div>
   `;
   
@@ -4144,15 +4441,163 @@ async function loadSettings() {
   
   if (apiKey) {
     // Don't show the actual key, just indicate it's saved
-    apiKeyInput.placeholder = 'API key is saved (enter new key to update)';
+    apiKeyInput.placeholder = 'Client ID is saved (enter a new one to update)';
     apiKeyInput.value = '';
   } else {
-    apiKeyInput.placeholder = 'Enter your Google Drive API Client ID';
+    apiKeyInput.placeholder = 'Enter your Google API Client ID';
     apiKeyInput.value = '';
+  }
+
+  if (typeof loadGoogleCalendarSettingsUI === 'function') {
+    await loadGoogleCalendarSettingsUI()
   }
 
   await populateDailyAlertSettingsUI()
 }
+
+// ---------------------------------------------------------------------------
+// Focus Noise (gapless Web Audio loop)
+// ---------------------------------------------------------------------------
+// Files live in ./audio (add them later). The first source that loads/decodes
+// successfully is used, so you can provide fallbacks (e.g. mp3 for browsers
+// without OGG support) by adding entries to FOCUS_NOISE_SOURCES.
+const FOCUS_NOISE_SOURCES = [
+  'audio/focus-loop.ogg',
+  'audio/focus-loop.mp3'
+];
+const FOCUS_NOISE_VOLUME = 0.5;
+
+let focusAudioCtx = null;   // AudioContext (created on first user gesture)
+let focusBuffer = null;     // decoded AudioBuffer (fetched/decoded once, cached)
+let focusSource = null;     // active AudioBufferSourceNode (null when stopped)
+let focusGain = null;       // GainNode for volume control
+let focusLoading = false;   // guard against double-clicks during fetch/decode
+
+async function toggleFocusNoise() {
+  const btn = document.getElementById('focus-noise-btn');
+
+  // Already playing -> stop
+  if (focusSource) {
+    stopFocusNoise(btn);
+    return;
+  }
+
+  if (focusLoading) return; // ignore clicks while loading
+  focusLoading = true;
+
+  try {
+    // Lazily create the AudioContext on first user gesture (autoplay policy)
+    if (!focusAudioCtx) {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) {
+        throw new Error('Web Audio API not supported');
+      }
+      focusAudioCtx = new Ctx();
+      focusGain = focusAudioCtx.createGain();
+      focusGain.gain.value = getFocusVolume();
+      focusGain.connect(focusAudioCtx.destination);
+    } else {
+      // Reflect the current slider value when (re)starting
+      focusGain.gain.value = getFocusVolume();
+    }
+
+    // Some browsers start the context suspended; resume on gesture
+    if (focusAudioCtx.state === 'suspended') {
+      await focusAudioCtx.resume();
+    }
+
+    // Fetch + decode the file only once, then cache the buffer
+    if (!focusBuffer) {
+      focusBuffer = await loadFocusBuffer();
+    }
+
+    startFocusNoise(btn);
+  } catch (err) {
+    console.error('Focus noise playback failed:', err);
+    showNotification('Could not play focus noise', 'error');
+  } finally {
+    focusLoading = false;
+  }
+}
+
+// Try each source URL in order; return the first that fetches + decodes.
+async function loadFocusBuffer() {
+  let lastError = null;
+  for (const url of FOCUS_NOISE_SOURCES) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) {
+        lastError = new Error(`HTTP ${res.status} for ${url}`);
+        continue;
+      }
+      const arrayBuffer = await res.arrayBuffer();
+      // decodeAudioData rejects on unsupported codecs; try the next source
+      return await focusAudioCtx.decodeAudioData(arrayBuffer);
+    } catch (err) {
+      lastError = err;
+    }
+  }
+  throw lastError || new Error('No focus noise source could be loaded');
+}
+
+function startFocusNoise(btn) {
+  // A source node is single-use; create a fresh one each time we start
+  focusSource = focusAudioCtx.createBufferSource();
+  focusSource.buffer = focusBuffer;
+  focusSource.loop = true; // gapless, sample-accurate loop
+  focusSource.connect(focusGain);
+  focusSource.start(0);
+
+  if (btn) {
+    btn.setAttribute('aria-pressed', 'true');
+    btn.classList.add('active');
+    const wrap = btn.closest('.focus-noise-wrap');
+    if (wrap) wrap.classList.add('playing');
+  }
+}
+
+function stopFocusNoise(btn) {
+  if (focusSource) {
+    try {
+      focusSource.stop();
+    } catch (e) {
+      /* already stopped */
+    }
+    focusSource.disconnect();
+    focusSource = null;
+  }
+  if (btn) {
+    btn.setAttribute('aria-pressed', 'false');
+    btn.classList.remove('active');
+    const wrap = btn.closest('.focus-noise-wrap');
+    if (wrap) wrap.classList.remove('playing');
+  }
+}
+
+// Read the volume slider (0-100) as a 0-1 gain value, with fallback.
+function getFocusVolume() {
+  const slider = document.getElementById('focus-noise-volume');
+  if (!slider) return FOCUS_NOISE_VOLUME;
+  const pct = Number(slider.value);
+  if (!Number.isFinite(pct)) return FOCUS_NOISE_VOLUME;
+  return Math.min(1, Math.max(0, pct / 100));
+}
+
+// Live-update gain while the user drags the slider
+document.addEventListener('DOMContentLoaded', () => {
+  const slider = document.getElementById('focus-noise-volume');
+  if (!slider) return;
+  slider.addEventListener('input', () => {
+    if (focusGain && focusAudioCtx) {
+      focusGain.gain.setValueAtTime(getFocusVolume(), focusAudioCtx.currentTime);
+    }
+  });
+});
+
+// Tidy up if the page is closed/reloaded while noise is playing
+window.addEventListener('beforeunload', () => {
+  stopFocusNoise(document.getElementById('focus-noise-btn'));
+});
 
 
 
