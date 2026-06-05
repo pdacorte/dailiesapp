@@ -1298,12 +1298,22 @@ html[data-theme="tokyo-night"] {
   background: rgba(245, 158, 11, 0.1);
 }
 
+.task-type-badge.daily {
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.1);
+}
+
 .dark .task-type-badge.goal {
   color: #a5b4fc;
   background: rgba(99, 102, 241, 0.15);
 }
 
 .dark .task-type-badge.non-negotiable {
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.15);
+}
+
+.dark .task-type-badge.daily {
   color: #fbbf24;
   background: rgba(245, 158, 11, 0.15);
 }
@@ -2208,6 +2218,11 @@ html[data-theme="tokyo-night"] .task-type-badge.non-negotiable {
   background: rgba(255, 158, 100, 0.13);
 }
 
+html[data-theme="tokyo-night"] .task-type-badge.daily {
+  color: var(--oc-tokyonight-accent);
+  background: rgba(255, 158, 100, 0.13);
+}
+
 html[data-theme="tokyo-night"] .subtask-toggle-btn {
   color: var(--oc-tokyonight-primary);
   background: rgba(22, 22, 30, 0.46);
@@ -2464,6 +2479,18 @@ html[data-theme="tokyo-night"] .empty-state {
 }
 
 /* ========================================
+   Mobile quote toggle + task-type legend (hidden on desktop)
+   ======================================== */
+
+.quote-collapse-toggle {
+  display: none;
+}
+
+.task-type-legend {
+  display: none;
+}
+
+/* ========================================
    Responsive Refinements
    ======================================== */
 
@@ -2564,6 +2591,93 @@ html[data-theme="tokyo-night"] .empty-state {
   .routines-actions .btn-primary {
     width: 100%;
     justify-content: center;
+  }
+
+  /* --- Mobile quote collapse toggle --- */
+  .quote-collapse-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    align-self: flex-start;
+    padding: 0.25rem 0.625rem;
+    margin-bottom: 0.5rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #6366f1;
+    background: rgba(99, 102, 241, 0.1);
+  }
+
+  .dark .quote-collapse-toggle {
+    color: #a5b4fc;
+    background: rgba(99, 102, 241, 0.15);
+  }
+
+  .quote-streak-row.quote-collapsed .quote-box {
+    display: none;
+  }
+
+  /* --- Mobile: hide per-task pill, color the task itself --- */
+  .task-item .task-type-badge {
+    display: none;
+  }
+
+  .task-item.task-parent[data-task-type="goal"] {
+    border-left: 4px solid #6366f1;
+    background: rgba(99, 102, 241, 0.06);
+  }
+
+  .task-item.task-parent[data-task-type="daily"] {
+    border-left: 4px solid #f59e0b;
+    background: rgba(245, 158, 11, 0.08);
+  }
+
+  .dark .task-item.task-parent[data-task-type="goal"] {
+    background: rgba(99, 102, 241, 0.12);
+  }
+
+  .dark .task-item.task-parent[data-task-type="daily"] {
+    background: rgba(245, 158, 11, 0.12);
+  }
+
+  /* --- Mobile task-type legend --- */
+  .task-type-legend {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-top: 0.25rem;
+    margin-bottom: 1rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid rgba(161, 161, 170, 0.2);
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: #71717a;
+  }
+
+  .dark .task-type-legend {
+    color: #a1a1aa;
+  }
+
+  .task-type-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+  }
+
+  .task-type-legend-swatch {
+    width: 0.75rem;
+    height: 0.75rem;
+    border-radius: 999px;
+    flex-shrink: 0;
+  }
+
+  .task-type-legend-swatch.goal {
+    background: #6366f1;
+  }
+
+  .task-type-legend-swatch.daily {
+    background: #f59e0b;
   }
 }
 

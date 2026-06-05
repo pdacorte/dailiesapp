@@ -5,7 +5,7 @@ This guide provides essential information for AI agents working on the DailiesAp
 ## Project Overview
 
 DailiesApp is a productivity web application with the following features:
-- **Task Management**: Add, complete, delete tasks with auto-creation of Non-Negotiable tasks
+- **Task Management**: Add, complete, delete tasks with auto-creation of recurring Daily tasks (formerly "Non-Negotiable"; legacy data auto-migrated to type `Daily`)
 - **Time Tracking**: Start/stop timer with task-specific time logging
 - **Progress Visualization**: Charts for expected vs actual tasks, streak tracking
 - **Data Portability**: Export/import JSON, Google Drive sync, clipboard sync
@@ -187,12 +187,15 @@ dailiesapp/
 
 1. **Task Management**:
    - Add, complete, delete tasks
-   - Non-negotiable tasks auto-create for next day
-   - Task type categorization (Goal/Non-Negotiable)
+   - Daily tasks auto-create a successor dated the NEXT day; the completed instance disappears from the ongoing list and the successor stays hidden until that day (ongoing list is date-gated via `isTaskVisibleToday`)
+   - Task type categorization (Goal/Daily) — legacy `Non-Negotiable` is auto-migrated to `Daily` once via `migrateNonNegotiableToDaily()` (settings flag `dailyTypeMigrated`)
+   - First letter of a new task title is auto-capitalized in the add-task input
    - Drag-and-drop reordering of ongoing tasks
    - Confetti celebration animation on task completion
    - Exit animation before task removal (no page refresh)
    - Completed tasks sorted by most recent first (endDate desc, then id desc)
+   - Streak mode setting (`streakMode`): "Streak for Goals" (default — any completion that day) or "Streak for Dailies" (a day counts only if it had >=1 Daily task and all are complete)
+   - Mobile (<=640px) only: collapsible quote (persisted in `localStorage.quoteCollapsedMobile`), per-task color pill styling + bottom legend instead of per-task badges, and an off-screen sidebar drawer opened by a floating hamburger button
 
 2. **Time Tracking**:
    - Start/stop timer with task name
@@ -342,7 +345,7 @@ Example: `feat: Add dark mode support for time tracking pie chart`
     {
       "id": number,
       "title": "string",
-      "type": "Goal" | "Non-Negotiable",
+      "type": "Goal" | "Daily",
       "status": boolean,
       "startDate": "YYYY-MM-DD",
       "endDate": "YYYY-MM-DD" | null

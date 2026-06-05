@@ -440,12 +440,46 @@ function initializeDB() {
   request.onsuccess = (event) => {
     console.log("Database initialized successfully")
     db = event.target.result
-    loadFocusedTaskId().finally(() => {
-      updateDisplay()
+    migrateNonNegotiableToDaily().finally(() => {
+      loadFocusedTaskId().finally(() => {
+        updateDisplay()
+      })
     })
     updateTimeTrackerDisplay()
     startDailyAlertScheduler()
     loadGoogleIntegrationsOnStartup()
+  }
+}
+
+async function migrateNonNegotiableToDaily() {
+  if (!db) return
+  try {
+    const alreadyMigrated = await getSettingValue("dailyTypeMigrated")
+    if (alreadyMigrated) return
+
+    await new Promise((resolve, reject) => {
+      const transaction = db.transaction(["tasks"], "readwrite")
+      const taskStore = transaction.objectStore("tasks")
+      const getAllRequest = taskStore.getAll()
+
+      getAllRequest.onsuccess = () => {
+        const tasks = getAllRequest.result || []
+        tasks.forEach((task) => {
+          if (task.type === "Non-Negotiable") {
+            task.type = "Daily"
+            taskStore.put(task)
+          }
+        })
+      }
+
+      transaction.oncomplete = () => resolve()
+      transaction.onerror = () => reject(transaction.error)
+      transaction.onabort = () => reject(transaction.error)
+    })
+
+    await setSettingValue("dailyTypeMigrated", true)
+  } catch (error) {
+    console.error("Error migrating Non-Negotiable tasks to Daily:", error)
   }
 }
 
@@ -478,24 +512,58 @@ async function loadGoogleIntegrationsOnStartup() {
   }
 }
 
+// True when the viewport is in the mobile (drawer) layout.
+function isMobileViewport() {
+  return window.matchMedia("(max-width: 640px)").matches;
+}
+
+// Show/hide the mobile drawer backdrop based on the sidebar state.
+function syncSidebarBackdrop() {
+  const sidebar = document.getElementById("sidebar");
+  const backdrop = document.getElementById("sidebar-backdrop");
+  if (!sidebar || !backdrop) return;
+  const drawerOpen = isMobileViewport() && !sidebar.classList.contains("collapsed");
+  backdrop.classList.toggle("is-visible", drawerOpen);
+}
+
 // Initialize sidebar state
 function initializeSidebar() {
   const sidebar = document.getElementById("sidebar");
-  const isCollapsed = localStorage.getItem("sidebarCollapsed") === "true";
-  
-  if (isCollapsed) {
+  if (!sidebar) return;
+
+  // On mobile the sidebar is an off-screen drawer; always start collapsed (hidden).
+  if (isMobileViewport()) {
     sidebar.classList.add("collapsed");
+  } else {
+    const isCollapsed = localStorage.getItem("sidebarCollapsed") === "true";
+    if (isCollapsed) {
+      sidebar.classList.add("collapsed");
+    }
   }
+  syncSidebarBackdrop();
 }
 
 // Toggle sidebar collapse state
 function toggleSidebar() {
   const sidebar = document.getElementById("sidebar");
   sidebar.classList.toggle("collapsed");
-  
-  // Save state to localStorage
+
+  // Persist desktop preference only (mobile drawer always starts closed).
   const isCollapsed = sidebar.classList.contains("collapsed");
-  localStorage.setItem("sidebarCollapsed", isCollapsed.toString());
+  if (!isMobileViewport()) {
+    localStorage.setItem("sidebarCollapsed", isCollapsed.toString());
+  }
+  syncSidebarBackdrop();
+}
+
+// Close the mobile drawer (used by the backdrop and nav selections).
+function closeMobileSidebar() {
+  const sidebar = document.getElementById("sidebar");
+  if (!sidebar) return;
+  if (isMobileViewport()) {
+    sidebar.classList.add("collapsed");
+    syncSidebarBackdrop();
+  }
 }
 
 // Set active sidebar link styling
@@ -693,6 +761,20 @@ function setupEventListeners() {
     addTask()
   })
 
+  // Auto-capitalize the first letter of the task title as the user types
+  const taskInput = document.getElementById("task-input")
+  if (taskInput) {
+    taskInput.addEventListener("input", () => {
+      const value = taskInput.value
+      if (value.length > 0 && value[0] !== value[0].toUpperCase()) {
+        const start = taskInput.selectionStart
+        const end = taskInput.selectionEnd
+        taskInput.value = value[0].toUpperCase() + value.slice(1)
+        taskInput.setSelectionRange(start, end)
+      }
+    })
+  }
+
   setupFocusZoneDragAndDrop()
 
   document.getElementById("theme-toggle").addEventListener("click", toggleTheme)
@@ -709,6 +791,7 @@ function setupEventListeners() {
       e.preventDefault();
       const view = link.dataset.view;
       setActiveView(view);
+      closeMobileSidebar();
     });
   });
 
@@ -754,6 +837,18 @@ function setupEventListeners() {
   const routinesForm = document.getElementById("routines-form")
   if (routinesForm) {
     routinesForm.addEventListener("submit", saveRoutines)
+  }
+
+  const streakModeSelect = document.getElementById("streak-mode")
+  if (streakModeSelect) {
+    streakModeSelect.addEventListener("change", async (e) => {
+      try {
+        await setSettingValue("streakMode", e.target.value)
+        updateStreak()
+      } catch (err) {
+        console.error("Error saving streak mode:", err)
+      }
+    })
   }
 
   window.addEventListener("resize", syncDashboardTaskCardHeight)
@@ -1129,6 +1224,20 @@ function getTodayDate() {
   return result
 }
 
+// Get tomorrow's date in user's timezone as YYYY-MM-DD string
+function getTomorrowDate() {
+  const now = new Date()
+  now.setDate(now.getDate() + 1)
+  const offset = now.getTimezoneOffset()
+  const localDate = new Date(now.getTime() - (offset * 60 * 1000))
+  return localDate.toISOString().split('T')[0]
+}
+
+// A task is visible today if it has no startDate or its startDate is today or earlier
+function isTaskVisibleToday(task) {
+  return !task.startDate || task.startDate <= getTodayDate()
+}
+
 // Get a random quote from the motivationalQuotes array
 function getRandomQuote() {
   const randomIndex = Math.floor(Math.random() * motivationalQuotes.length)
@@ -1236,7 +1345,7 @@ function addTask() {
 
   request.onsuccess = () => {
     const allTasks = request.result
-    const ongoingTasks = getTopLevelTasks(allTasks).filter(task => !task.status)
+    const ongoingTasks = getTopLevelTasks(allTasks).filter(task => !task.status && isTaskVisibleToday(task))
     const maxSortOrder = ongoingTasks.length > 0 
       ? Math.max(...ongoingTasks.map(t => t.sortOrder || 0))
       : -1
@@ -1487,18 +1596,18 @@ function buildTaskCompletionMutation(task, allTasks) {
     endDate: today,
     completedAt: Date.now(),
   }
-  const isNonNegotiable = task.type === "Non-Negotiable" && !isSubtask
+  const isDaily = task.type === "Daily" && !isSubtask
   const activeTopLevelTasks = getTopLevelTasks(allTasks)
-    .filter((item) => !item.status && item.id !== task.id)
+    .filter((item) => !item.status && item.id !== task.id && isTaskVisibleToday(item))
   const maxSortOrder = activeTopLevelTasks.length > 0
     ? Math.max(...activeTopLevelTasks.map((item) => item.sortOrder || 0))
     : -1
-  const successorTask = isNonNegotiable
+  const successorTask = isDaily
     ? {
         title: task.title,
-        type: "Non-Negotiable",
+        type: "Daily",
         status: false,
-        startDate: today,
+        startDate: getTomorrowDate(),
         endDate: null,
         sortOrder: maxSortOrder + 1,
       }
@@ -1513,7 +1622,7 @@ function buildTaskCompletionMutation(task, allTasks) {
     parentTask,
     subtasks,
     incompleteSubtasks,
-    isNonNegotiable,
+    isDaily,
     successorTask,
   }
 }
@@ -1734,19 +1843,15 @@ function applyOptimisticTaskCompletion(mutation) {
 
   if (taskElement) {
     launchConfetti(taskElement)
-    if (mutation.isNonNegotiable) {
-      taskElement.classList.add("task-celebrating")
-    } else {
-      const className = mutation.isSubtask ? "subtask-completing" : "task-completing"
-      patch.removal = removeElementWithCompletionAnimation(taskElement, className, () => {
-        if (mutation.isSubtask) {
-          patchParentSubtaskProgress(mutation, patch)
-        } else {
-          addOngoingEmptyStateIfNeeded(patch)
-        }
-        syncDashboardTaskCardHeight()
-      })
-    }
+    const className = mutation.isSubtask ? "subtask-completing" : "task-completing"
+    patch.removal = removeElementWithCompletionAnimation(taskElement, className, () => {
+      if (mutation.isSubtask) {
+        patchParentSubtaskProgress(mutation, patch)
+      } else {
+        addOngoingEmptyStateIfNeeded(patch)
+      }
+      syncDashboardTaskCardHeight()
+    })
   }
 
   patch.completedElement = prependCompletedTaskElement(mutation.completedTask, mutation.parentTask, patch)
@@ -1868,9 +1973,8 @@ function replaceOngoingTaskElement(task, allTasks, taskElement) {
 }
 
 function finalizeOptimisticTaskCompletion(mutation, patch, result) {
-  if (mutation.isNonNegotiable && result.successorTask) {
-    replaceOngoingTaskElement(result.successorTask, mutation.allTasks, patch.taskElement)
-  }
+  // Daily successor is dated tomorrow and must stay hidden until that day,
+  // so it is intentionally NOT inserted into today's ongoing DOM here.
   if (typeof updateStreak === "function") {
     updateStreak()
   }
@@ -1883,7 +1987,7 @@ function resetRejectedCompletionCheckbox(taskId, isSubtask = false) {
   setCompletionCheckboxState(checkbox, false, false)
 }
 
-// Mark a task as complete and create next day's task if Non-Negotiable
+// Mark a task as complete and create next day's task if Daily
 async function completeTask(taskId) {
   const numericTaskId = Number(taskId)
   if (!db || Number.isNaN(numericTaskId)) {
@@ -2115,7 +2219,12 @@ async function updateTodayInfo() {
                 <span id="today-completed-count" class="text-sm font-medium text-zinc-500 dark:text-zinc-400">${completedToday} tasks completed</span>
             </div>
             <div class="quote-streak-row">
-                <div class="quote-box">
+                <button type="button" id="quote-collapse-toggle" class="quote-collapse-toggle" onclick="toggleQuoteCollapse()" aria-controls="quote-box" aria-expanded="true" title="Collapse quote">
+                    <span class="material-symbols-outlined text-base">format_quote</span>
+                    <span class="quote-collapse-label">Quote</span>
+                    <span id="quote-collapse-chevron" class="material-symbols-outlined text-base">expand_less</span>
+                </button>
+                <div id="quote-box" class="quote-box">
                     <p class="italic text-sm md:text-base leading-relaxed text-zinc-600 dark:text-zinc-300 pl-4">"${escapeHTML(quote.text)}"</p>
                     ${quote.author ? `<p class="text-right text-xs text-zinc-400 dark:text-zinc-500 mt-2">- ${escapeHTML(quote.author)}</p>` : ''}
                 </div>
@@ -2130,9 +2239,34 @@ async function updateTodayInfo() {
                 </div>
             </div>
         `
+    applyQuoteCollapsedState()
   } catch (error) {
     console.error("Error updating today's info:", error)
   }
+}
+
+// Apply the persisted (mobile) quote-collapsed state to the rendered quote box.
+function applyQuoteCollapsedState() {
+  const row = document.querySelector(".quote-streak-row")
+  const toggle = document.getElementById("quote-collapse-toggle")
+  const chevron = document.getElementById("quote-collapse-chevron")
+  if (!row) return
+  const collapsed = localStorage.getItem("quoteCollapsedMobile") === "true"
+  row.classList.toggle("quote-collapsed", collapsed)
+  if (toggle) {
+    toggle.setAttribute("aria-expanded", (!collapsed).toString())
+    toggle.title = collapsed ? "Show quote" : "Collapse quote"
+  }
+  if (chevron) {
+    chevron.textContent = collapsed ? "expand_more" : "expand_less"
+  }
+}
+
+// Toggle the (mobile-only) quote visibility and persist the choice.
+function toggleQuoteCollapse() {
+  const collapsed = localStorage.getItem("quoteCollapsedMobile") === "true"
+  localStorage.setItem("quoteCollapsedMobile", (!collapsed).toString())
+  applyQuoteCollapsedState()
 }
 
 function updateTodayCompletionCount() {
@@ -2153,6 +2287,14 @@ function updateTodayCompletionCount() {
   request.onerror = (event) => {
     console.error("Error updating today's completion count:", event.target.error)
   }
+}
+
+function getTaskTypeLabel(type) {
+  return type === "Daily" ? "Daily" : "Goal"
+}
+
+function getTaskTypeBadgeClass(type) {
+  return type === "Daily" ? "daily" : "goal"
 }
 
 function createOngoingTaskElement(task, allTasks, index, animate = true, isFocused = false) {
@@ -2187,7 +2329,8 @@ function createOngoingTaskElement(task, allTasks, index, animate = true, isFocus
   taskElement.dataset.taskId = task.id
   taskElement.dataset.incompleteSubtasks = incompleteSubtasks.length
   taskElement.dataset.sortOrder = task.sortOrder !== undefined ? task.sortOrder : index
-  const badgeClass = task.type === 'Non-Negotiable' ? 'non-negotiable' : 'goal'
+  taskElement.dataset.taskType = getTaskTypeBadgeClass(task.type)
+  const badgeClass = getTaskTypeBadgeClass(task.type)
   const focusButtonHTML = isFocused
     ? `<button type="button" onclick="unfocusTask()" class="focus-toggle-btn is-focused" title="Remove from focus">
                     <span class="material-symbols-outlined text-base">center_focus_strong</span>
@@ -2203,7 +2346,7 @@ function createOngoingTaskElement(task, allTasks, index, animate = true, isFocus
                 <div class="task-meta-actions">
                   ${progressHTML}
                   ${isFocused ? '<span class="focus-badge">Focus</span>' : ''}
-                  <span class="task-type-badge ${badgeClass}">${task.type}</span>
+                  <span class="task-type-badge ${badgeClass}">${getTaskTypeLabel(task.type)}</span>
                   ${focusButtonHTML}
                   <button type="button" onclick="toggleSubtaskForm(${task.id})" class="subtask-toggle-btn" title="Add subtask" aria-controls="subtask-form-${task.id}">
                     <span class="material-symbols-outlined text-base">add_task</span>
@@ -2283,7 +2426,7 @@ function updateOngoingTasks(animate = true) {
       const allTasks = request.result
       console.log("All tasks:", allTasks)
 
-      let tasks = getTopLevelTasks(allTasks).filter((task) => !task.status)
+      let tasks = getTopLevelTasks(allTasks).filter((task) => !task.status && isTaskVisibleToday(task))
 
       tasks.sort((a, b) => {
         const orderA = a.sortOrder !== undefined ? a.sortOrder : a.order !== undefined ? a.order : 999999
@@ -2400,38 +2543,64 @@ function updateCompletedTasks() {
 }
 
 // Calculate and update the current streak count
-function updateStreak() {
+async function updateStreak() {
+  if (!db) return
+  const streakCountEl = document.getElementById("streak-count")
+  if (!streakCountEl) return
+
+  let mode = "goals"
+  try {
+    const stored = await getSettingValue("streakMode")
+    if (stored === "dailies") mode = "dailies"
+  } catch (err) {
+    console.error("Error reading streak mode:", err)
+  }
+
   const transaction = db.transaction(["tasks"], "readonly")
   const taskStore = transaction.objectStore("tasks")
-  const index = taskStore.index("endDate")
+  const allTasks = await idbRequestToPromise(taskStore.getAll())
+
+  // Build per-date lookup
+  const offset = new Date().getTimezoneOffset()
+  const toLocalDateStr = (date) => formatDate(new Date(date.getTime() - offset * 60 * 1000))
 
   let streak = 0
-  const currentDate = new Date()
-  const offset = currentDate.getTimezoneOffset()
+  let cursor = new Date()
 
-  function checkDate(date) {
-    // Adjust for timezone
-    const localDate = new Date(date.getTime() - (offset * 60 * 1000))
-    const dateStr = formatDate(localDate)
-    console.log('Checking streak for date:', dateStr) // Debug log
-
-    const request = index.count(IDBKeyRange.only(dateStr))
-
-    request.onsuccess = () => {
-      console.log('Tasks completed on', dateStr + ':', request.result) // Debug log
-      if (request.result > 0) {
+  if (mode === "goals") {
+    // A day counts if >=1 task completed that day (endDate === dateStr)
+    const completedByDate = new Set()
+    allTasks.forEach((t) => { if (t.status && t.endDate) completedByDate.add(t.endDate) })
+    while (true) {
+      const dateStr = toLocalDateStr(cursor)
+      if (completedByDate.has(dateStr)) {
         streak++
-        // Move to previous day using the same timezone offset
-        const prevDate = new Date(date.getTime() - 24 * 60 * 60 * 1000)
-        checkDate(prevDate)
-      } else {
-        console.log('Final streak count:', streak) // Debug log
-        document.getElementById("streak-count").textContent = `${streak} days`
+        cursor = new Date(cursor.getTime() - 24 * 60 * 60 * 1000)
+      } else break
+    }
+  } else {
+    // dailies: a day counts only if it had >=1 Daily task scheduled (startDate===dateStr, top-level)
+    // AND every such Daily task is complete. A day with zero Daily tasks stops the streak.
+    const dailyByDate = new Map() // dateStr -> { total, done }
+    allTasks.forEach((t) => {
+      if (t.type === "Daily" && !hasParentTask(t) && t.startDate) {
+        const entry = dailyByDate.get(t.startDate) || { total: 0, done: 0 }
+        entry.total++
+        if (t.status) entry.done++
+        dailyByDate.set(t.startDate, entry)
       }
+    })
+    while (true) {
+      const dateStr = toLocalDateStr(cursor)
+      const entry = dailyByDate.get(dateStr)
+      if (entry && entry.total > 0 && entry.done === entry.total) {
+        streak++
+        cursor = new Date(cursor.getTime() - 24 * 60 * 60 * 1000)
+      } else break
     }
   }
 
-  checkDate(currentDate)
+  streakCountEl.textContent = `${streak} days`
 }
 
 // Update the progress chart comparing expected vs actual tasks
@@ -3860,8 +4029,11 @@ function importDatabase() {
         if (!task.title || typeof task.title !== 'string') {
           throw new Error("Invalid task data: missing or invalid title");
         }
-        if (!['Goal', 'Non-Negotiable'].includes(task.type)) {
-          throw new Error("Invalid task data: type must be 'Goal' or 'Non-Negotiable'");
+        if (!['Goal', 'Non-Negotiable', 'Daily'].includes(task.type)) {
+          throw new Error("Invalid task data: type must be 'Goal' or 'Daily'");
+        }
+        if (task.type === 'Non-Negotiable') {
+          task.type = 'Daily';
         }
         if (task.parentId !== undefined && task.parentId !== null && typeof task.parentId !== 'number') {
           throw new Error("Invalid task data: parentId must be a number when provided");
@@ -4453,6 +4625,12 @@ async function loadSettings() {
   }
 
   await populateDailyAlertSettingsUI()
+
+  const streakModeSelect = document.getElementById("streak-mode")
+  if (streakModeSelect) {
+    const mode = await getSettingValue("streakMode")
+    streakModeSelect.value = mode === "dailies" ? "dailies" : "goals"
+  }
 }
 
 // ---------------------------------------------------------------------------
