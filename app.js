@@ -66,7 +66,7 @@ let dailyAlertInterval = null
 let dashboardHeightSyncFrame = null
 const taskCompletionsInFlight = new Set()
 
-const THEME_SEQUENCE = ["light", "dark", "tokyo-night"]
+const THEME_SEQUENCE = ["light", "dark", "tokyo-night", "forest"]
 const THEME_CONFIG = {
   light: {
     label: "Light",
@@ -79,6 +79,10 @@ const THEME_CONFIG = {
   "tokyo-night": {
     label: "Tokyo Night",
     icon: "nights_stay",
+  },
+  forest: {
+    label: "Forest",
+    icon: "forest",
   },
 }
 
@@ -135,6 +139,24 @@ const DEFAULT_CHART_COLORS = {
     pieColors: [
       "#7aa2f7", "#e0af68", "#9ece6a", "#1abc9c", "#bb9af7",
       "#9d7cd8", "#ff9e64", "#f7768e", "#7dcfff", "#73daca",
+    ],
+  },
+  forest: {
+    isDark: true,
+    grid: "rgba(139, 160, 129, 0.25)",
+    text: "#cdd9c4",
+    tooltipBackground: "#1f3528",
+    tooltipTitle: "#f3ead8",
+    tooltipBody: "#cdd9c4",
+    tooltipBorder: "#b7caa6",
+    expectedBorder: "#e8dcc0",
+    expectedBackground: "rgba(232, 220, 192, 0.12)",
+    actualBorder: "#8fbf78",
+    actualBackground: "rgba(143, 191, 120, 0.14)",
+    pieBorder: "#1f3528",
+    pieColors: [
+      "#e8dcc0", "#8fbf78", "#d9b25f", "#c9b896", "#a3c98a",
+      "#d9c9a3", "#7da866", "#cdb87f", "#b7caa6", "#9bbf85",
     ],
   },
 }
@@ -345,8 +367,8 @@ function applyTheme(theme) {
 
   if (root.dataset) {
     root.dataset.themeMode = nextTheme
-    if (nextTheme === "tokyo-night") {
-      root.dataset.theme = "tokyo-night"
+    if (nextTheme === "tokyo-night" || nextTheme === "forest") {
+      root.dataset.theme = nextTheme
     } else {
       delete root.dataset.theme
     }

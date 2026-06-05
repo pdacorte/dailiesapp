@@ -27,6 +27,40 @@
   --oc-tokyonight-cyan: #7dcfff;
   --oc-tokyonight-border: #15161e;
   --oc-tokyonight-border-active: #27a1b9;
+
+  /* Forest theme palette (green background, light beige accents) */
+  --oc-forest-bg: #1b2e22;
+  --oc-forest-bg-panel: #1f3528;
+  --oc-forest-bg-deep: #142318;
+  --oc-forest-bg-element: #2a4634;
+  --oc-forest-text: #f3ead8;
+  --oc-forest-text-muted: #cdd9c4;
+  --oc-forest-comment: #8ba081;
+  --oc-forest-primary: #e8dcc0;
+  --oc-forest-secondary: #c9b896;
+  --oc-forest-accent: #d9c9a3;
+  --oc-forest-success: #8fbf78;
+  --oc-forest-warning: #d9b25f;
+  --oc-forest-error: #d98c6a;
+  --oc-forest-border: #2a4634;
+  --oc-forest-border-active: #b7caa6;
+
+  /* Theme-aware task type colors (mobile pills + legend) */
+  --task-goal-color: #6366f1;
+  --task-goal-border: #6366f1;
+  --task-goal-bg: rgba(99, 102, 241, 0.06);
+  --task-daily-color: #f59e0b;
+  --task-daily-border: #f59e0b;
+  --task-daily-bg: rgba(245, 158, 11, 0.08);
+}
+
+.dark {
+  --task-goal-color: #a5b4fc;
+  --task-goal-border: #818cf8;
+  --task-goal-bg: rgba(99, 102, 241, 0.12);
+  --task-daily-color: #fbbf24;
+  --task-daily-border: #f59e0b;
+  --task-daily-bg: rgba(245, 158, 11, 0.12);
 }
 
 html[data-theme="tokyo-night"] {
@@ -35,6 +69,28 @@ html[data-theme="tokyo-night"] {
   --shadow-card: 0 16px 40px rgba(0, 0, 0, 0.22), 0 0 0 1px rgba(122, 162, 247, 0.04);
   --shadow-card-hover: 0 22px 52px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(39, 161, 185, 0.14);
   color-scheme: dark;
+
+  --task-goal-color: var(--oc-tokyonight-primary);
+  --task-goal-border: var(--oc-tokyonight-primary);
+  --task-goal-bg: rgba(122, 162, 247, 0.14);
+  --task-daily-color: var(--oc-tokyonight-accent);
+  --task-daily-border: var(--oc-tokyonight-accent);
+  --task-daily-bg: rgba(255, 158, 100, 0.13);
+}
+
+html[data-theme="forest"] {
+  --primary: var(--oc-forest-primary);
+  --primary-hover: #f3ead8;
+  --shadow-card: 0 16px 40px rgba(0, 0, 0, 0.28), 0 0 0 1px rgba(232, 220, 192, 0.05);
+  --shadow-card-hover: 0 22px 52px rgba(0, 0, 0, 0.36), 0 0 0 1px rgba(183, 202, 166, 0.16);
+  color-scheme: dark;
+
+  --task-goal-color: var(--oc-forest-primary);
+  --task-goal-border: var(--oc-forest-primary);
+  --task-goal-bg: rgba(232, 220, 192, 0.12);
+  --task-daily-color: var(--oc-forest-success);
+  --task-daily-border: var(--oc-forest-success);
+  --task-daily-bg: rgba(143, 191, 120, 0.16);
 }
 
 .theme-toggle-button {
@@ -2389,6 +2445,12 @@ html[data-theme="tokyo-night"] #theme-toggle[data-theme-state="tokyo-night"] .th
   color: var(--oc-tokyonight-warning);
 }
 
+html[data-theme="tokyo-night"] #mobile-menu-button {
+  color: var(--oc-tokyonight-bg-deep);
+  background: linear-gradient(135deg, var(--oc-tokyonight-primary), var(--oc-tokyonight-cyan));
+  box-shadow: 0 4px 14px rgba(122, 162, 247, 0.4);
+}
+
 html[data-theme="tokyo-night"] #google-drive-modal > div {
   color: var(--oc-tokyonight-text);
   background: var(--oc-tokyonight-bg-panel) !important;
@@ -2406,6 +2468,596 @@ html[data-theme="tokyo-night"] #google-drive-modal :is(.bg-gray-50, .bg-gray-100
 
 html[data-theme="tokyo-night"] #google-drive-modal :is(.bg-blue-100, .dark\:bg-blue-900\/30) {
   background-color: rgba(122, 162, 247, 0.14) !important;
+}
+
+/* ========================================
+   Forest Theme (green background, light beige accents)
+   ======================================== */
+
+html[data-theme="forest"] body {
+  color: var(--oc-forest-text) !important;
+  background-color: var(--oc-forest-bg) !important;
+  background-image:
+    radial-gradient(circle at top left, rgba(143, 191, 120, 0.14), transparent 28rem),
+    radial-gradient(circle at 82% 12%, rgba(232, 220, 192, 0.08), transparent 24rem),
+    linear-gradient(135deg, var(--oc-forest-bg), #1d3325 58%, var(--oc-forest-bg-deep)) !important;
+}
+
+html[data-theme="forest"] main {
+  color: var(--oc-forest-text);
+}
+
+html[data-theme="forest"] ::selection {
+  background: rgba(42, 70, 52, 0.95);
+  color: var(--oc-forest-text);
+}
+
+html[data-theme="forest"] :focus-visible {
+  outline-color: var(--oc-forest-border-active);
+}
+
+html[data-theme="forest"] :is(
+  .text-zinc-900,
+  .text-zinc-800,
+  .dark\:text-white,
+  .text-gray-800,
+  .dark\:text-gray-200
+) {
+  color: var(--oc-forest-text) !important;
+}
+
+html[data-theme="forest"] :is(
+  .text-zinc-700,
+  .dark\:text-zinc-200,
+  .dark\:text-zinc-300,
+  .text-gray-700,
+  .dark\:text-gray-300
+) {
+  color: var(--oc-forest-text-muted) !important;
+}
+
+html[data-theme="forest"] :is(
+  .text-zinc-600,
+  .text-zinc-500,
+  .dark\:text-zinc-400,
+  .text-gray-600,
+  .dark\:text-gray-400
+) {
+  color: var(--oc-forest-text-muted) !important;
+}
+
+html[data-theme="forest"] :is(
+  .text-zinc-400,
+  .dark\:text-zinc-500,
+  .dark\:text-zinc-600,
+  .text-gray-500
+) {
+  color: var(--oc-forest-comment) !important;
+}
+
+html[data-theme="forest"] :is(
+  .text-indigo-400,
+  .text-indigo-500,
+  .text-indigo-600,
+  .dark\:text-indigo-400,
+  .text-blue-500,
+  .text-blue-600,
+  .dark\:text-blue-400
+) {
+  color: var(--oc-forest-primary) !important;
+}
+
+html[data-theme="forest"] :is(.text-violet-400, .text-violet-500) {
+  color: var(--oc-forest-secondary) !important;
+}
+
+html[data-theme="forest"] :is(
+  .text-emerald-400,
+  .text-emerald-500,
+  .text-green-500
+) {
+  color: var(--oc-forest-success) !important;
+}
+
+html[data-theme="forest"] :is(.text-amber-400, .text-amber-500) {
+  color: var(--oc-forest-warning) !important;
+}
+
+html[data-theme="forest"] :is(
+  .text-red-500,
+  .text-red-600,
+  .dark\:text-red-400,
+  .dark\:hover\:text-red-400:hover
+) {
+  color: var(--oc-forest-error) !important;
+}
+
+html[data-theme="forest"] :is(
+  .bg-white,
+  .dark\:bg-gray-800,
+  .dark\:bg-zinc-800,
+  .dark\:bg-zinc-900\/80
+) {
+  background-color: var(--oc-forest-bg-panel) !important;
+}
+
+html[data-theme="forest"] :is(
+  .bg-zinc-50,
+  .dark\:bg-zinc-950,
+  .bg-gray-50,
+  .dark\:bg-gray-700,
+  .dark\:bg-zinc-800\/60,
+  .dark\:hover\:bg-zinc-800\/60:hover
+) {
+  background-color: var(--oc-forest-bg-element) !important;
+}
+
+html[data-theme="forest"] :is(
+  .border-zinc-100,
+  .dark\:border-zinc-800,
+  .border-zinc-200,
+  .dark\:border-zinc-700,
+  .border-gray-200,
+  .dark\:border-gray-700
+) {
+  border-color: rgba(143, 160, 129, 0.32) !important;
+}
+
+html[data-theme="forest"] body.bg-zinc-50,
+html[data-theme="forest"] body.text-zinc-800 {
+  color: var(--oc-forest-text) !important;
+  background-color: var(--oc-forest-bg) !important;
+}
+
+html[data-theme="forest"] body.bg-zinc-50.dark\:bg-zinc-950.text-zinc-800.dark\:text-zinc-200 {
+  color: var(--oc-forest-text) !important;
+  background-color: var(--oc-forest-bg) !important;
+}
+
+html[data-theme="forest"] #sidebar {
+  background: rgba(20, 35, 24, 0.9) !important;
+  border-right-color: var(--oc-forest-border) !important;
+  box-shadow: 18px 0 46px rgba(0, 0, 0, 0.24);
+}
+
+html[data-theme="forest"] #user-avatar {
+  box-shadow: 0 0 0 2px rgba(183, 202, 166, 0.25), 0 10px 26px rgba(143, 191, 120, 0.2);
+}
+
+html[data-theme="forest"] :is(#sidebar-toggle, .sidebar-link) {
+  color: var(--oc-forest-text-muted) !important;
+}
+
+html[data-theme="forest"] :is(#sidebar-toggle, .sidebar-link):hover {
+  color: var(--oc-forest-text) !important;
+  background: rgba(42, 70, 52, 0.74) !important;
+}
+
+html[data-theme="forest"] .sidebar-link.active {
+  color: var(--oc-forest-text) !important;
+  background: linear-gradient(135deg, rgba(143, 191, 120, 0.22), rgba(232, 220, 192, 0.14)) !important;
+  box-shadow: inset 0 0 0 1px rgba(183, 202, 166, 0.22);
+}
+
+html[data-theme="forest"] .sidebar-link.active .material-symbols-outlined {
+  color: var(--oc-forest-success) !important;
+}
+
+html[data-theme="forest"] #new-task-button {
+  color: var(--oc-forest-bg-deep) !important;
+  background: linear-gradient(135deg, var(--oc-forest-primary), var(--oc-forest-success)) !important;
+  box-shadow: 0 12px 26px rgba(143, 191, 120, 0.22);
+}
+
+html[data-theme="forest"] .card {
+  background: linear-gradient(180deg, rgba(31, 53, 40, 0.94), rgba(31, 53, 40, 0.82));
+  border-color: rgba(143, 160, 129, 0.24);
+  box-shadow: var(--shadow-card);
+}
+
+html[data-theme="forest"] .card:hover {
+  border-color: rgba(183, 202, 166, 0.42);
+  box-shadow: var(--shadow-card-hover);
+}
+
+html[data-theme="forest"] .card-gradient-streak,
+html[data-theme="forest"] .compact-streak-card {
+  color: var(--oc-forest-bg-deep);
+  background: linear-gradient(135deg, var(--oc-forest-accent), var(--oc-forest-warning), var(--oc-forest-success));
+  box-shadow: 0 14px 34px rgba(217, 178, 95, 0.2);
+}
+
+html[data-theme="forest"] .compact-streak-label {
+  color: rgba(20, 35, 24, 0.7);
+}
+
+html[data-theme="forest"] .today-routine-badge {
+  color: var(--oc-forest-success);
+  background: rgba(143, 191, 120, 0.14);
+  border-color: rgba(143, 191, 120, 0.32);
+}
+
+html[data-theme="forest"] :is(.input-field, .progress-goal-control input) {
+  color: var(--oc-forest-text);
+  background: rgba(42, 70, 52, 0.66);
+  border-color: rgba(143, 160, 129, 0.42);
+}
+
+html[data-theme="forest"] :is(.input-field, .progress-goal-control input)::placeholder {
+  color: var(--oc-forest-comment);
+}
+
+html[data-theme="forest"] :is(.input-field, .progress-goal-control input):hover {
+  border-color: rgba(183, 202, 166, 0.45);
+}
+
+html[data-theme="forest"] :is(.input-field, .progress-goal-control input):focus {
+  color: var(--oc-forest-text);
+  background: rgba(20, 35, 24, 0.98);
+  border-color: var(--oc-forest-border-active);
+  box-shadow: 0 0 0 3px rgba(183, 202, 166, 0.18);
+}
+
+html[data-theme="forest"] .btn-primary {
+  color: var(--oc-forest-bg-deep);
+  background: var(--oc-forest-primary);
+}
+
+html[data-theme="forest"] .btn-primary:hover {
+  background: #f3ead8;
+  box-shadow: 0 8px 20px rgba(232, 220, 192, 0.24);
+}
+
+html[data-theme="forest"] .btn-success {
+  color: var(--oc-forest-bg-deep);
+  background: var(--oc-forest-success);
+}
+
+html[data-theme="forest"] .btn-success:hover {
+  background: #a3c98a;
+  box-shadow: 0 8px 20px rgba(143, 191, 120, 0.22);
+}
+
+html[data-theme="forest"] .btn-danger {
+  background: var(--oc-forest-error);
+}
+
+html[data-theme="forest"] .btn-ghost {
+  color: var(--oc-forest-text-muted);
+  background: rgba(20, 35, 24, 0.38);
+  border-color: rgba(143, 160, 129, 0.4);
+}
+
+html[data-theme="forest"] .btn-ghost:hover {
+  color: var(--oc-forest-text);
+  background: rgba(42, 70, 52, 0.84);
+  border-color: rgba(183, 202, 166, 0.38);
+}
+
+html[data-theme="forest"] .label-text {
+  color: var(--oc-forest-text-muted);
+}
+
+html[data-theme="forest"] .pomodoro-btn-work {
+  color: var(--oc-forest-success);
+  background: rgba(143, 191, 120, 0.12);
+  border-color: rgba(143, 191, 120, 0.28);
+}
+
+html[data-theme="forest"] .pomodoro-btn-short {
+  color: var(--oc-forest-accent);
+  background: rgba(217, 201, 163, 0.12);
+  border-color: rgba(217, 201, 163, 0.28);
+}
+
+html[data-theme="forest"] .pomodoro-btn-long {
+  color: var(--oc-forest-warning);
+  background: rgba(217, 178, 95, 0.12);
+  border-color: rgba(217, 178, 95, 0.28);
+}
+
+html[data-theme="forest"] .pomodoro-btn-focus {
+  color: var(--oc-forest-secondary);
+  background: rgba(201, 184, 150, 0.12);
+  border-color: rgba(201, 184, 150, 0.28);
+}
+
+html[data-theme="forest"] .pomodoro-btn:hover,
+html[data-theme="forest"] .pomodoro-btn.active {
+  color: var(--oc-forest-bg-deep);
+}
+
+html[data-theme="forest"] .pomodoro-btn-work:hover,
+html[data-theme="forest"] .pomodoro-btn-work.active {
+  background: var(--oc-forest-success);
+  border-color: var(--oc-forest-success);
+}
+
+html[data-theme="forest"] .pomodoro-btn-short:hover,
+html[data-theme="forest"] .pomodoro-btn-short.active {
+  background: var(--oc-forest-accent);
+  border-color: var(--oc-forest-accent);
+}
+
+html[data-theme="forest"] .pomodoro-btn-long:hover,
+html[data-theme="forest"] .pomodoro-btn-long.active {
+  background: var(--oc-forest-warning);
+  border-color: var(--oc-forest-warning);
+}
+
+html[data-theme="forest"] .pomodoro-btn-focus:hover,
+html[data-theme="forest"] .pomodoro-btn-focus.active {
+  background: var(--oc-forest-secondary);
+  border-color: var(--oc-forest-secondary);
+}
+
+html[data-theme="forest"] .pomodoro-status {
+  color: var(--oc-forest-comment);
+}
+
+html[data-theme="forest"] .timer-display {
+  color: var(--oc-forest-text);
+  background: linear-gradient(135deg, rgba(42, 70, 52, 0.88), rgba(20, 35, 24, 0.96));
+  border-color: rgba(143, 160, 129, 0.42);
+}
+
+html[data-theme="forest"] .timer-display.timer-running {
+  color: var(--oc-forest-success);
+  border-color: rgba(143, 191, 120, 0.38);
+}
+
+html[data-theme="forest"] .timer-display.timer-break-running {
+  color: var(--oc-forest-accent);
+  border-color: rgba(217, 201, 163, 0.38);
+}
+
+html[data-theme="forest"] .confirmation-button {
+  border-color: var(--oc-forest-comment);
+  background: rgba(20, 35, 24, 0.4);
+}
+
+html[data-theme="forest"] .confirmation-button:hover {
+  border-color: var(--oc-forest-success);
+  background-color: rgba(143, 191, 120, 0.12);
+}
+
+html[data-theme="forest"] .confirmation-button:hover::after {
+  border-color: var(--oc-forest-success);
+}
+
+html[data-theme="forest"] .confirmation-button:checked {
+  background-color: var(--oc-forest-success);
+  border-color: var(--oc-forest-success);
+}
+
+html[data-theme="forest"] :is(.task-item, .completed-item, .time-entry-item) {
+  background: rgba(42, 70, 52, 0.42);
+  border-color: rgba(143, 160, 129, 0.18);
+}
+
+html[data-theme="forest"] :is(.task-item, .completed-item, .time-entry-item):hover {
+  background: rgba(42, 70, 52, 0.72);
+  border-color: rgba(183, 202, 166, 0.26);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
+}
+
+html[data-theme="forest"] :is(.task-title-text, .completed-title-text, .subtask-title) {
+  color: var(--oc-forest-text);
+}
+
+html[data-theme="forest"] :is(.completed-parent-title, .completed-separator) {
+  color: var(--oc-forest-text-muted);
+}
+
+html[data-theme="forest"] .subtask-progress {
+  color: var(--oc-forest-success);
+  background: rgba(143, 191, 120, 0.12);
+}
+
+html[data-theme="forest"] :is(.task-type-badge.goal, .completed-subtask-badge) {
+  color: var(--oc-forest-primary);
+  background: rgba(232, 220, 192, 0.14);
+}
+
+html[data-theme="forest"] .task-type-badge.non-negotiable {
+  color: var(--oc-forest-success);
+  background: rgba(143, 191, 120, 0.16);
+}
+
+html[data-theme="forest"] .task-type-badge.daily {
+  color: var(--oc-forest-success);
+  background: rgba(143, 191, 120, 0.16);
+}
+
+html[data-theme="forest"] .subtask-toggle-btn {
+  color: var(--oc-forest-success);
+  background: rgba(20, 35, 24, 0.46);
+  border-color: rgba(143, 160, 129, 0.36);
+}
+
+html[data-theme="forest"] .subtask-toggle-btn:hover {
+  background: rgba(143, 191, 120, 0.13);
+  border-color: rgba(143, 191, 120, 0.38);
+}
+
+html[data-theme="forest"] .subtask-list {
+  border-left-color: rgba(143, 160, 129, 0.42);
+}
+
+html[data-theme="forest"] .subtask-item {
+  background: rgba(20, 35, 24, 0.48);
+  border-color: rgba(143, 160, 129, 0.26);
+}
+
+html[data-theme="forest"] .subtask-empty {
+  color: var(--oc-forest-comment);
+}
+
+html[data-theme="forest"] .task-delete-btn {
+  color: var(--oc-forest-comment);
+}
+
+html[data-theme="forest"] .task-delete-btn:hover {
+  color: var(--oc-forest-error);
+  background: rgba(217, 140, 106, 0.14);
+}
+
+html[data-theme="forest"] .day-cell:hover {
+  background: rgba(42, 70, 52, 0.58);
+}
+
+html[data-theme="forest"] .day-cell .day-label {
+  color: var(--oc-forest-comment);
+}
+
+html[data-theme="forest"] .day-cell .day-count.positive {
+  color: var(--oc-forest-success);
+  background: rgba(143, 191, 120, 0.14);
+}
+
+html[data-theme="forest"] .day-cell .day-count.zero {
+  color: var(--oc-forest-comment);
+  background: rgba(42, 70, 52, 0.7);
+}
+
+html[data-theme="forest"] .drag-handle {
+  color: var(--oc-forest-comment);
+}
+
+html[data-theme="forest"] .task-item:hover .drag-handle {
+  color: var(--oc-forest-success);
+}
+
+html[data-theme="forest"] .task-item.drag-over {
+  border-color: var(--oc-forest-border-active) !important;
+  background: rgba(183, 202, 166, 0.1);
+}
+
+/* Focus Task feature - Forest overrides */
+html[data-theme="forest"] .focus-zone.is-empty {
+  border-color: rgba(143, 160, 129, 0.4);
+  background: rgba(42, 70, 52, 0.32);
+}
+
+html[data-theme="forest"] .focus-zone.drag-over {
+  border-color: var(--oc-forest-success) !important;
+  background: rgba(143, 191, 120, 0.12) !important;
+}
+
+html[data-theme="forest"] .focus-zone-placeholder {
+  color: var(--oc-forest-comment);
+}
+
+html[data-theme="forest"] .focus-zone-placeholder .material-symbols-outlined {
+  color: var(--oc-forest-success);
+}
+
+html[data-theme="forest"] .task-item.task-focused {
+  border-color: var(--oc-forest-success) !important;
+  background: linear-gradient(135deg, rgba(143, 191, 120, 0.16), rgba(143, 191, 120, 0.05)) !important;
+  box-shadow: 0 4px 16px rgba(143, 191, 120, 0.22);
+}
+
+html[data-theme="forest"] .focus-badge {
+  color: var(--oc-forest-bg-deep);
+  background: var(--oc-forest-success);
+}
+
+html[data-theme="forest"] .focus-toggle-btn {
+  color: var(--oc-forest-comment);
+}
+
+html[data-theme="forest"] .focus-toggle-btn:hover,
+html[data-theme="forest"] .focus-toggle-btn.is-focused {
+  color: var(--oc-forest-success);
+  background: rgba(143, 191, 120, 0.13);
+}
+
+html[data-theme="forest"] .ongoing-tasks-list.drag-over {
+  background: rgba(143, 191, 120, 0.08);
+  outline-color: var(--oc-forest-success);
+}
+
+html[data-theme="forest"] .quote-box {
+  background: linear-gradient(135deg, rgba(42, 70, 52, 0.66), rgba(20, 35, 24, 0.88));
+  border-color: rgba(143, 160, 129, 0.32);
+}
+
+html[data-theme="forest"] .quote-box::before {
+  color: rgba(232, 220, 192, 0.2);
+}
+
+html[data-theme="forest"] .notification-toast.success {
+  color: var(--oc-forest-success);
+  background: rgba(34, 56, 38, 0.96);
+  border-color: rgba(143, 191, 120, 0.32);
+}
+
+html[data-theme="forest"] .notification-toast.error {
+  color: var(--oc-forest-error);
+  background: rgba(64, 42, 34, 0.96);
+  border-color: rgba(217, 140, 106, 0.32);
+}
+
+html[data-theme="forest"] .notification-toast.info {
+  color: var(--oc-forest-accent);
+  background: rgba(42, 70, 52, 0.96);
+  border-color: rgba(217, 201, 163, 0.32);
+}
+
+html[data-theme="forest"] .custom-scrollbar::-webkit-scrollbar-thumb,
+html[data-theme="forest"] #sidebar::-webkit-scrollbar-thumb {
+  background: rgba(143, 160, 129, 0.56);
+}
+
+html[data-theme="forest"] .custom-scrollbar::-webkit-scrollbar-thumb:hover,
+html[data-theme="forest"] #sidebar::-webkit-scrollbar-thumb:hover {
+  background: rgba(183, 202, 166, 0.58);
+}
+
+html[data-theme="forest"] .empty-state {
+  color: var(--oc-forest-comment);
+}
+
+html[data-theme="forest"] #theme-toggle {
+  color: var(--oc-forest-primary);
+  background: linear-gradient(135deg, rgba(20, 35, 24, 0.96), rgba(42, 70, 52, 0.92));
+  border-color: rgba(183, 202, 166, 0.44);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.36), 0 0 24px rgba(143, 191, 120, 0.12);
+}
+
+html[data-theme="forest"] #theme-toggle:hover {
+  color: var(--oc-forest-warning);
+  border-color: var(--oc-forest-border-active);
+}
+
+html[data-theme="forest"] #theme-toggle[data-theme-state="forest"] .theme-toggle-icon {
+  color: var(--oc-forest-success);
+}
+
+html[data-theme="forest"] #mobile-menu-button {
+  color: var(--oc-forest-bg-deep);
+  background: linear-gradient(135deg, var(--oc-forest-primary), var(--oc-forest-success));
+  box-shadow: 0 4px 14px rgba(143, 191, 120, 0.4);
+}
+
+html[data-theme="forest"] #google-drive-modal > div {
+  color: var(--oc-forest-text);
+  background: var(--oc-forest-bg-panel) !important;
+  border: 1px solid rgba(143, 160, 129, 0.34);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.48);
+}
+
+html[data-theme="forest"] #google-drive-modal-content {
+  background: var(--oc-forest-bg-panel);
+}
+
+html[data-theme="forest"] #google-drive-modal :is(.bg-gray-50, .bg-gray-100, .dark\:bg-gray-700) {
+  background-color: var(--oc-forest-bg-element) !important;
+}
+
+html[data-theme="forest"] #google-drive-modal :is(.bg-blue-100, .dark\:bg-blue-900\/30) {
+  background-color: rgba(143, 191, 120, 0.14) !important;
 }
 
 /* ========================================
@@ -2623,21 +3275,13 @@ html[data-theme="tokyo-night"] .empty-state {
   }
 
   .task-item.task-parent[data-task-type="goal"] {
-    border-left: 4px solid #6366f1;
-    background: rgba(99, 102, 241, 0.06);
+    border-left: 4px solid var(--task-goal-border);
+    background: var(--task-goal-bg);
   }
 
   .task-item.task-parent[data-task-type="daily"] {
-    border-left: 4px solid #f59e0b;
-    background: rgba(245, 158, 11, 0.08);
-  }
-
-  .dark .task-item.task-parent[data-task-type="goal"] {
-    background: rgba(99, 102, 241, 0.12);
-  }
-
-  .dark .task-item.task-parent[data-task-type="daily"] {
-    background: rgba(245, 158, 11, 0.12);
+    border-left: 4px solid var(--task-daily-border);
+    background: var(--task-daily-bg);
   }
 
   /* --- Mobile task-type legend --- */
@@ -2673,11 +3317,11 @@ html[data-theme="tokyo-night"] .empty-state {
   }
 
   .task-type-legend-swatch.goal {
-    background: #6366f1;
+    background: var(--task-goal-border);
   }
 
   .task-type-legend-swatch.daily {
-    background: #f59e0b;
+    background: var(--task-daily-border);
   }
 }
 
