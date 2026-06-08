@@ -71,18 +71,22 @@ const THEME_CONFIG = {
   light: {
     label: "Light",
     icon: "light_mode",
+    themeColor: "#6366f1",
   },
   dark: {
     label: "Dark",
     icon: "dark_mode",
+    themeColor: "#6366f1",
   },
   "tokyo-night": {
     label: "Tokyo Night",
     icon: "nights_stay",
+    themeColor: "#7aa2f7",
   },
   forest: {
     label: "Forest",
     icon: "forest",
+    themeColor: "#e8dcc0",
   },
 }
 
@@ -354,6 +358,14 @@ function updateThemeToggleButton(theme) {
   button.setAttribute("aria-label", `Theme: ${currentConfig.label}. Switch to ${nextConfig.label}.`)
 }
 
+function updatePwaThemeColor(theme) {
+  const meta = document.querySelector('meta[name="theme-color"]')
+  if (!meta) return
+
+  const config = THEME_CONFIG[normalizeTheme(theme)] || THEME_CONFIG.light
+  meta.setAttribute("content", config.themeColor)
+}
+
 function applyTheme(theme) {
   const nextTheme = normalizeTheme(theme)
   const root = document.documentElement
@@ -376,6 +388,7 @@ function applyTheme(theme) {
 
   localStorage.setItem("theme", nextTheme)
   updateThemeToggleButton(nextTheme)
+  updatePwaThemeColor(nextTheme)
   return nextTheme
 }
 

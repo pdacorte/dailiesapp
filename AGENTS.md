@@ -9,7 +9,7 @@ DailiesApp is a productivity web application with the following features:
 - **Time Tracking**: Start/stop timer with task-specific time logging
 - **Progress Visualization**: Charts for expected vs actual tasks, streak tracking
 - **Data Portability**: Export/import JSON, Google Drive sync, clipboard sync
-- **Theme Support**: Light/dark mode with persistence
+- **Theme Support**: Four themes (Light, Dark, Tokyo Night, Forest) with persistence; PWA status bar color matches the active theme's highlight
 
 **Technology Stack:**
 - **Frontend**: HTML/CSS/JavaScript with IndexedDB storage
@@ -214,9 +214,10 @@ dailiesapp/
    - Auto-backup every 5 minutes
 
 5. **Theme Support**:
-   - Light/dark mode toggle
-   - Theme persistence in localStorage
+   - Four themes cycled via the toggle: Light, Dark, Tokyo Night, Forest (`THEME_SEQUENCE` / `THEME_CONFIG` in `app.js`)
+   - Theme persistence in localStorage (`theme` key)
    - Icon adaptation for themes
+   - PWA phone status bar color follows the active theme's highlight: `applyTheme()` calls `updatePwaThemeColor()`, which sets the `<meta name="theme-color">` content from `THEME_CONFIG[theme].themeColor` (light/dark `#6366f1`, Tokyo Night `#7aa2f7`, Forest `#e8dcc0`). Keep these values in sync with each theme's `--primary` in `custom.css`.
 
 ## Security Considerations
 
