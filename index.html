@@ -5,6 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dailies</title>
     <link rel="icon" href="favicon.ico" sizes="any">
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#6366f1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Dailies">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
     <link href="output.css" rel="stylesheet">
@@ -551,6 +558,20 @@
                                                 <option value="goals" selected>Streak for Goals</option>
                                                 <option value="dailies">Streak for Dailies</option>
                                             </select>
+                                        </div>
+
+                                        <!-- Install App (PWA) -->
+                                        <div class="pt-5 border-t border-zinc-100 dark:border-zinc-800">
+                                            <div class="flex items-center justify-between gap-4">
+                                                <div>
+                                                    <h4 class="text-sm font-medium text-zinc-700 dark:text-zinc-300">Install App</h4>
+                                                    <p class="text-xs text-zinc-400 mt-0.5">Add Dailies to your phone or desktop and use it offline</p>
+                                                </div>
+                                                <button id="install-app-btn" type="button" onclick="installApp()" class="btn-primary h-9 px-4 text-sm hidden" hidden>
+                                                    <span class="material-symbols-outlined text-base align-middle mr-1">install_mobile</span>Install App
+                                                </button>
+                                            </div>
+                                            <div id="install-status" class="hidden mt-3 p-3 rounded-xl text-sm"></div>
                                         </div>
 
                                         <div class="pt-5 border-t border-zinc-100 dark:border-zinc-800 space-y-4">

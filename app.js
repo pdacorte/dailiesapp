@@ -391,6 +391,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   setupEventListeners()
   checkAutoBackup()
   setupAutoSave()
+  setupPWA()
 })
 
 // Make database accessible to Google Drive functions
@@ -4798,6 +4799,176 @@ document.addEventListener('DOMContentLoaded', () => {
 window.addEventListener('beforeunload', () => {
   stopFocusNoise(document.getElementById('focus-noise-btn'));
 });
+
+
+/* =========================================================================
+ * PWA: Service worker registration + Install App button
+ * ========================================================================= */
+
+let deferredInstallPrompt = null;
+
+function isAppInstalled() {
+  return (
+    window.matchMedia('(display-mode: standalone)').matches ||
+    window.navigator.standalone === true
+  );
+}
+
+function isIOS() {
+  return (
+    /iphone|ipad|ipod/i.test(window.navigator.userAgent) &&
+    !window.MSStream
+  );
+}
+
+function setInstallStatus(message, type = 'info') {
+  const el = document.getElementById('install-status');
+  if (!el) return;
+  if (!message) {
+    el.classList.add('hidden');
+    el.textContent = '';
+    return;
+  }
+  const styles = {
+    info: 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300',
+    success: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400',
+    error: 'bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400',
+  };
+  el.className = `mt-3 p-3 rounded-xl text-sm ${styles[type] || styles.info}`;
+  el.textContent = message;
+}
+
+function showInstallButton() {
+  const btn = document.getElementById('install-app-btn');
+  if (!btn) return;
+  btn.classList.remove('hidden');
+  btn.removeAttribute('hidden');
+}
+
+function hideInstallButton() {
+  const btn = document.getElementById('install-app-btn');
+  if (!btn) return;
+  btn.classList.add('hidden');
+  btn.setAttribute('hidden', '');
+}
+
+// Called by the "Install App" button in Settings
+async function installApp() {
+  // iOS Safari has no beforeinstallprompt — guide the user manually.
+  if (!deferredInstallPrompt) {
+    if (isIOS()) {
+      setInstallStatus(
+        'To install on iPhone/iPad: tap the Share button, then "Add to Home Screen".',
+        'info'
+      );
+    } else if (isAppInstalled()) {
+      setInstallStatus('Dailies is already installed on this device.', 'success');
+    } else {
+      setInstallStatus(
+        'Install is not available right now. Make sure the app is open over HTTPS and try reloading.',
+        'info'
+      );
+    }
+    return;
+  }
+
+  deferredInstallPrompt.prompt();
+  try {
+    const { outcome } = await deferredInstallPrompt.userChoice;
+    if (outcome === 'accepted') {
+      if (typeof showNotification === 'function') {
+        showNotification('Installing Dailies…', 'success');
+      }
+    } else {
+      setInstallStatus('Installation dismissed. You can install anytime from here.', 'info');
+    }
+  } catch (err) {
+    console.error('Install prompt error:', err);
+  } finally {
+    deferredInstallPrompt = null;
+    hideInstallButton();
+  }
+}
+
+function setupPWA() {
+  // 1. Register the service worker
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker
+      .register('service-worker.js')
+      .then((registration) => {
+        // Detect a new version waiting to activate
+        registration.addEventListener('updatefound', () => {
+          const newWorker = registration.installing;
+          if (!newWorker) return;
+          newWorker.addEventListener('statechange', () => {
+            if (
+              newWorker.state === 'installed' &&
+              navigator.serviceWorker.controller
+            ) {
+              promptAppUpdate(registration);
+            }
+          });
+        });
+      })
+      .catch((err) => console.warn('Service worker registration failed:', err));
+
+    // Reload once the new SW takes control
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (refreshing) return;
+      refreshing = true;
+      window.location.reload();
+    });
+  }
+
+  // 2. Capture the install prompt
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    showInstallButton();
+    setInstallStatus('');
+  });
+
+  // 3. React to a successful install
+  window.addEventListener('appinstalled', () => {
+    deferredInstallPrompt = null;
+    hideInstallButton();
+    setInstallStatus('Dailies has been installed. Look for the icon on your home screen.', 'success');
+    if (typeof showNotification === 'function') {
+      showNotification('App installed successfully', 'success');
+    }
+  });
+
+  // 4. Initial button/status state
+  if (isAppInstalled()) {
+    hideInstallButton();
+    setInstallStatus('Dailies is running as an installed app.', 'success');
+  } else if (isIOS()) {
+    // iOS never fires beforeinstallprompt; show the button so users get instructions.
+    showInstallButton();
+  }
+}
+
+function promptAppUpdate(registration) {
+  setInstallStatus('A new version is available.', 'info');
+  const statusEl = document.getElementById('install-status');
+  if (statusEl) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn-primary h-8 px-3 text-sm ml-2 mt-2';
+    btn.textContent = 'Reload to update';
+    btn.addEventListener('click', () => {
+      if (registration.waiting) {
+        registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+      }
+    });
+    statusEl.appendChild(document.createElement('br'));
+    statusEl.appendChild(btn);
+  }
+  if (typeof showNotification === 'function') {
+    showNotification('Update available — reload to apply', 'info');
+  }
+}
 
 
 
