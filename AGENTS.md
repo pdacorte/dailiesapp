@@ -170,10 +170,14 @@ dailiesapp/
 
 ## Development Workflow
 
+> **MANDATORY: Bump the service worker cache version on EVERY change.**
+> Any time you change `app.js`, `index.html`, any `.css`, `manifest.json`, icons, or any other precached asset, you MUST increment `CACHE_VERSION` in `service-worker.js` (e.g. `dailies-v3` → `dailies-v4`). The service worker is cache-first, so installed/PWA clients will keep serving the OLD code until the version changes. Forgetting this means your change never reaches users. Just edit the one line; any new unique string works.
+
 1. **Frontend Changes**:
    - Run `npm run dev` to watch for CSS changes
    - Test in browser with live reload
    - Run `npm run build` before committing
+   - **Bump `CACHE_VERSION` in `service-worker.js`** (see mandatory note above) so PWA/installed clients receive the update
 
 2. **Testing Strategy**:
    - Manual testing of all features

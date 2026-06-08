@@ -4,7 +4,7 @@
  * clients receive the update (the page shows an "update available" prompt).
  */
 
-const CACHE_VERSION = "dailies-v1";
+const CACHE_VERSION = "dailies-v3";
 
 // App shell: local files resolved relative to the SW scope.
 const PRECACHE_URLS = [
