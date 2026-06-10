@@ -12,10 +12,13 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Dailies">
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
-    <link href="output.css" rel="stylesheet">
-    <link href="custom.css" rel="stylesheet">
+    <!-- Self-hosted fonts: preload the most critical weights to avoid FOIT, then load the @font-face stylesheet -->
+    <link rel="preload" href="fonts/inter-400.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="fonts/inter-600.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="fonts/material-symbols.woff2" as="font" type="font/woff2" crossorigin>
+    <link href="fonts/fonts.css" rel="stylesheet">
+    <link href="output.min.css" rel="stylesheet">
+    <link href="custom.min.css" rel="stylesheet">
     <style>
       .material-symbols-outlined {
         font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
@@ -771,9 +774,8 @@
         <span id="theme-toggle-label" class="theme-toggle-label">Light</span>
     </button>
 
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="google-drive.js"></script>
-    <script src="google-calendar.js"></script>
-    <script src="app.js"></script>
+    <script defer src="google-drive.js"></script>
+    <script defer src="google-calendar.js"></script>
+    <script defer src="app.min.js"></script>
 </body>
 </html>

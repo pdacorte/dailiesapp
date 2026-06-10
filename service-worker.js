@@ -4,17 +4,26 @@
  * clients receive the update (the page shows an "update available" prompt).
  */
 
-const CACHE_VERSION = "dailies-v3";
+const CACHE_VERSION = "dailies-v6";
 
 // App shell: local files resolved relative to the SW scope.
 const PRECACHE_URLS = [
   "./",
   "./index.html",
-  "./output.css",
-  "./custom.css",
-  "./app.js",
+  "./output.min.css",
+  "./custom.min.css",
+  "./app.min.js",
   "./google-drive.js",
   "./google-calendar.js",
+  "./vendor/chart.umd.min.js",
+  "./fonts/fonts.css",
+  "./fonts/inter-300.woff2",
+  "./fonts/inter-400.woff2",
+  "./fonts/inter-500.woff2",
+  "./fonts/inter-600.woff2",
+  "./fonts/inter-700.woff2",
+  "./fonts/inter-800.woff2",
+  "./fonts/material-symbols.woff2",
   "./manifest.json",
   "./favicon.ico",
   "./icons/icon-192.png",
@@ -25,12 +34,9 @@ const PRECACHE_URLS = [
   "./icons/whitecross.svg",
 ];
 
-// Cross-origin runtime assets we want available offline (fonts + Chart.js).
-const RUNTIME_ALLOW = [
-  "https://fonts.googleapis.com",
-  "https://fonts.gstatic.com",
-  "https://cdn.jsdelivr.net",
-];
+// Cross-origin runtime assets we still allow at runtime (none required now that
+// fonts and Chart.js are self-hosted; kept empty for clarity).
+const RUNTIME_ALLOW = [];
 
 // Google APIs / OAuth must never be cached or intercepted.
 const NETWORK_ONLY = [
@@ -125,7 +131,8 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Allowed cross-origin (fonts, Chart.js): stale-while-revalidate.
+  // Allowed cross-origin assets (currently none — fonts/Chart.js are self-hosted):
+  // stale-while-revalidate.
   if (isRuntimeAllowed(url)) {
     event.respondWith(staleWhileRevalidate(req));
     return;

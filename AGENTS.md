@@ -23,18 +23,35 @@ DailiesApp is a productivity web application with the following features:
 
 ### Frontend Development
 ```bash
-# Development mode - watch for changes and compile Tailwind CSS
+# Development mode - watch for changes and compile Tailwind CSS (-> output.css)
 npm run dev
 
-# Production build - minify CSS
+# Production build - minify CSS + JS (see "Minified deploy assets" below)
 npm run build
 
 # Install dependencies
 npm install
 
-# Check JavaScript syntax
+# Check JavaScript syntax (validate BOTH source and the minified output)
 node -c app.js
+node -c app.min.js
 ```
+
+> **MANDATORY: `index.html` and the service worker load the MINIFIED assets, not the sources.**
+> `index.html` links `output.min.css`, `custom.min.css`, and `app.min.js`; the source files are `styles.css`/`output.css`, `custom.css`, and `app.js`. After editing any source, you MUST run `npm run build` to regenerate the minified files, or your change will NOT reach the app. Then bump `CACHE_VERSION` in `service-worker.js`.
+>
+> `npm run build` runs three steps (esbuild is a devDependency):
+> - `build:css:tw`   → Tailwind minify `styles.css` → `output.min.css`
+> - `build:css:custom` → esbuild minify `custom.css` → `custom.min.css`
+> - `build:js`       → esbuild minify `app.js` → `app.min.js`
+>
+> `google-drive.js` and `google-calendar.js` are loaded unminified (small, change rarely). All app `<script>` tags use `defer`.
+>
+> **Self-hosted assets (no third-party CDN/Google requests at runtime):**
+> - **Chart.js** is vendored at `vendor/chart.umd.min.js` and lazy-loaded on first chart render via `ensureChartJs()` in `app.js` (`CHART_JS_SRC = "vendor/chart.umd.min.js"`). Do NOT re-add the jsDelivr CDN link. To upgrade, re-download the UMD min build into `vendor/` and bump `CACHE_VERSION`.
+> - **Fonts** (Inter latin subset + Material Symbols icon subset) live in `fonts/` with `fonts/fonts.css` (the `@font-face` rules). `index.html` preloads the critical woff2 (`inter-400`, `inter-600`, `material-symbols`) then links `fonts/fonts.css`. Do NOT re-add `fonts.googleapis.com`/`fonts.gstatic.com` links.
+> - **Adding a new Material Symbols icon:** the icon font is a fixed subset, so a new icon name will NOT render until you regenerate `fonts/material-symbols.woff2`. Re-fetch the Google Fonts subset CSS (with the updated `&icon_names=` list) and its woff2 (see how `fonts/fonts.css` was generated), replace the local woff2, and bump `CACHE_VERSION`.
+> - All self-hosted assets (`vendor/chart.umd.min.js`, `fonts/fonts.css`, every woff2) are listed in `PRECACHE_URLS` in `service-worker.js` for offline use.
 
 ### Testing
 ```bash
@@ -138,8 +155,12 @@ dailiesapp/
 ├── app.js             # Main JavaScript application
 ├── styles.css         # Tailwind directives + CSS variables + animation keyframes
 ├── custom.css         # Custom component styles (.card, .btn-*, .task-item, etc.)
-├── output.css         # Generated Tailwind CSS (dev)
-├── minified.css       # Minified Tailwind CSS (prod)
+├── output.css         # Generated Tailwind CSS (dev, from `npm run dev`)
+├── output.min.css     # Minified Tailwind CSS (prod, linked by index.html)
+├── custom.min.css     # Minified custom component styles (prod, linked by index.html)
+├── app.min.js         # Minified app JS (prod, loaded by index.html)
+├── vendor/            # Self-hosted third-party assets (Chart.js)
+├── fonts/             # Self-hosted fonts (Inter + Material Symbols subset) + fonts.css
 ├── tailwind.config.js # Tailwind configuration (Inter font, darkMode: 'class')
 ├── postcss.config.js  # PostCSS configuration
 ├── package.json       # Node.js dependencies

@@ -6,6 +6,36 @@ let currentChart = null
 let currentPieChart = null
 let expectedTasksPerDay = 1
 
+// Lazy-load Chart.js: it is not needed for first paint, so we inject it from the
+// CDN only when a chart is first rendered. Returns a promise resolved when the
+// global `Chart` is available.
+const CHART_JS_SRC = "vendor/chart.umd.min.js"
+let chartJsPromise = null
+function ensureChartJs() {
+  if (typeof Chart !== "undefined") return Promise.resolve()
+  if (chartJsPromise) return chartJsPromise
+
+  chartJsPromise = new Promise((resolve, reject) => {
+    const existing = document.querySelector(`script[src="${CHART_JS_SRC}"]`)
+    if (existing) {
+      existing.addEventListener("load", () => resolve())
+      existing.addEventListener("error", reject)
+      if (typeof Chart !== "undefined") resolve()
+      return
+    }
+    const script = document.createElement("script")
+    script.src = CHART_JS_SRC
+    script.async = true
+    script.onload = () => resolve()
+    script.onerror = () => {
+      chartJsPromise = null
+      reject(new Error("Failed to load Chart.js"))
+    }
+    document.head.appendChild(script)
+  })
+  return chartJsPromise
+}
+
 // Drag and drop variables
 let draggedElement = null
 let draggedTaskId = null
@@ -66,7 +96,7 @@ let dailyAlertInterval = null
 let dashboardHeightSyncFrame = null
 const taskCompletionsInFlight = new Set()
 
-const THEME_SEQUENCE = ["light", "dark", "tokyo-night", "forest"]
+const THEME_SEQUENCE = ["light", "dark", "tokyo-night", "forest", "sakura"]
 const THEME_CONFIG = {
   light: {
     label: "Light",
@@ -87,6 +117,11 @@ const THEME_CONFIG = {
     label: "Forest",
     icon: "forest",
     themeColor: "#e8dcc0",
+  },
+  sakura: {
+    label: "Sakura",
+    icon: "local_florist",
+    themeColor: "#e9a8bd",
   },
 }
 
@@ -161,6 +196,24 @@ const DEFAULT_CHART_COLORS = {
     pieColors: [
       "#e8dcc0", "#8fbf78", "#d9b25f", "#c9b896", "#a3c98a",
       "#d9c9a3", "#7da866", "#cdb87f", "#b7caa6", "#9bbf85",
+    ],
+  },
+  sakura: {
+    isDark: false,
+    grid: "rgba(233, 168, 189, 0.28)",
+    text: "#9c6b7c",
+    tooltipBackground: "#fff5f8",
+    tooltipTitle: "#7a4a59",
+    tooltipBody: "#9c6b7c",
+    tooltipBorder: "#f1c5d4",
+    expectedBorder: "#e9a8bd",
+    expectedBackground: "rgba(233, 168, 189, 0.12)",
+    actualBorder: "#7fb88f",
+    actualBackground: "rgba(127, 184, 143, 0.12)",
+    pieBorder: "#fff5f8",
+    pieColors: [
+      "#e9a8bd", "#f4a6c0", "#c98fb5", "#7fb88f", "#f0b67f",
+      "#d98fa8", "#b591c9", "#e6c27a", "#8fbcd4", "#e890a9",
     ],
   },
 }
@@ -369,7 +422,7 @@ function updatePwaThemeColor(theme) {
 function applyTheme(theme) {
   const nextTheme = normalizeTheme(theme)
   const root = document.documentElement
-  const isDarkTheme = nextTheme !== "light"
+  const isDarkTheme = nextTheme !== "light" && nextTheme !== "sakura"
 
   if (isDarkTheme) {
     root.classList.add("dark")
@@ -379,7 +432,7 @@ function applyTheme(theme) {
 
   if (root.dataset) {
     root.dataset.themeMode = nextTheme
-    if (nextTheme === "tokyo-night" || nextTheme === "forest") {
+    if (nextTheme === "tokyo-night" || nextTheme === "forest" || nextTheme === "sakura") {
       root.dataset.theme = nextTheme
     } else {
       delete root.dataset.theme
@@ -2644,6 +2697,14 @@ function updateChart() {
   const chartElement = document.getElementById("progress-chart")
   if (!chartElement || !db) return
 
+  ensureChartJs()
+    .then(() => updateChartInternal(chartElement))
+    .catch((err) => console.error("Chart.js failed to load:", err))
+}
+
+function updateChartInternal(chartElement) {
+  if (!chartElement || !db) return
+
   const ctx = chartElement.getContext("2d")
 
   // Destroy previous chart instance if it exists
@@ -3756,6 +3817,17 @@ function deleteTaskTimeTracking(taskName) {
 
 // Update pie chart showing time distribution by task
 function updateTimePieChart() {
+  const ctx = document.getElementById("time-pie-chart");
+  if (!ctx || !db) {
+    return;
+  }
+
+  ensureChartJs()
+    .then(() => updateTimePieChartInternal())
+    .catch((err) => console.error("Chart.js failed to load:", err));
+}
+
+function updateTimePieChartInternal() {
   const ctx = document.getElementById("time-pie-chart");
   if (!ctx) {
     return;
