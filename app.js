@@ -4748,7 +4748,6 @@ async function loadSettings() {
 // successfully is used, so you can provide fallbacks (e.g. mp3 for browsers
 // without OGG support) by adding entries to FOCUS_NOISE_SOURCES.
 const FOCUS_NOISE_SOURCES = [
-  'audio/focus-loop.ogg',
   'audio/focus-loop.mp3'
 ];
 const FOCUS_NOISE_VOLUME = 0.5;
@@ -4811,9 +4810,20 @@ async function loadFocusBuffer() {
   let lastError = null;
   for (const url of FOCUS_NOISE_SOURCES) {
     try {
-      const res = await fetch(url);
+      // Explicitly request audio so a misconfigured host can't hand back an
+      // HTML/SPA fallback page (which the browser would otherwise try to
+      // "download" or fail to decode).
+      const res = await fetch(url, { headers: { Accept: 'audio/*' } });
       if (!res.ok) {
         lastError = new Error(`HTTP ${res.status} for ${url}`);
+        continue;
+      }
+      const contentType = res.headers.get('content-type') || '';
+      if (contentType && !/^audio\//i.test(contentType) &&
+          !/octet-stream/i.test(contentType)) {
+        // Host returned a non-audio response (e.g. HTML 404 fallback). Skip it
+        // instead of feeding garbage to decodeAudioData.
+        lastError = new Error(`Unexpected content-type "${contentType}" for ${url}`);
         continue;
       }
       const arrayBuffer = await res.arrayBuffer();

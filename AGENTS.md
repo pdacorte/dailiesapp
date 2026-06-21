@@ -1,6 +1,6 @@
 # AGENTS.md - DailiesApp Development Guide
 
-This guide provides essential information for AI agents working on the DailiesApp project.
+This guide provides essential information for AI agents working on the DailiesApp project. Once an update is made, this file should also be updated.
 
 ## Project Overview
 
