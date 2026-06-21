@@ -4744,13 +4744,20 @@ async function loadSettings() {
 // ---------------------------------------------------------------------------
 // Focus Noise (gapless Web Audio loop)
 // ---------------------------------------------------------------------------
-// Files live in ./audio (add them later). The first source that loads/decodes
-// successfully is used, so you can provide fallbacks (e.g. mp3 for browsers
-// without OGG support) by adding entries to FOCUS_NOISE_SOURCES.
+// Files live in ./audio. The first source that loads/decodes successfully is
+// used. OGG/Vorbis is listed first because it is gapless (no encoder padding),
+// giving a seamless source.loop, with the MP3 as a fallback for browsers
+// without OGG support (e.g. older Safari).
 const FOCUS_NOISE_SOURCES = [
+  'audio/focus-loop.ogg',
   'audio/focus-loop.mp3'
 ];
 const FOCUS_NOISE_VOLUME = 0.5;
+// Crossfade applied at the loop seam to mask the tail dip baked into the source
+// file (its last ~20ms fades down, so a raw loop has an audible dip-then-swell).
+// 60ms is long enough to hide the dip but short enough to be inaudible as a
+// repeating gesture for ambient noise.
+const FOCUS_LOOP_CROSSFADE_SEC = 0.06;
 
 let focusAudioCtx = null;   // AudioContext (created on first user gesture)
 let focusBuffer = null;     // decoded AudioBuffer (fetched/decoded once, cached)
@@ -4791,9 +4798,11 @@ async function toggleFocusNoise() {
       await focusAudioCtx.resume();
     }
 
-    // Fetch + decode the file only once, then cache the buffer
+    // Fetch + decode the file only once, then bake a seamless (crossfaded)
+    // loop buffer and cache it.
     if (!focusBuffer) {
-      focusBuffer = await loadFocusBuffer();
+      const decoded = await loadFocusBuffer();
+      focusBuffer = buildSeamlessLoopBuffer(decoded);
     }
 
     startFocusNoise(btn);
@@ -4834,6 +4843,57 @@ async function loadFocusBuffer() {
     }
   }
   throw lastError || new Error('No focus noise source could be loaded');
+}
+
+// Bake a seamless looping buffer from a decoded clip by crossfading its tail
+// over its head. The returned buffer is (length - crossfade) samples long; when
+// played with source.loop = true, the join lands inside an already-blended
+// region, so there is no audible dip/click at the seam.
+//
+// How it works: we drop the last `fade` samples (the part that gets folded back
+// onto the head) and, within the first `fade` samples of the result, mix:
+//     head[i] * fadeIn(i)  +  tail[i] * fadeOut(i)
+// using equal-power (cos/sin) curves so perceived loudness stays constant.
+function buildSeamlessLoopBuffer(buffer) {
+  const sr = buffer.sampleRate;
+  const ch = buffer.numberOfChannels;
+  const n = buffer.length;
+  let fade = Math.round(FOCUS_LOOP_CROSSFADE_SEC * sr);
+
+  // Guard: need room for a head, a tail, and a gap between them. If the clip is
+  // too short to crossfade safely, fall back to the original buffer untouched.
+  if (!Number.isFinite(fade) || fade < 1 || n < fade * 3) {
+    return buffer;
+  }
+
+  const outLen = n - fade;            // looped region length
+  let out;
+  try {
+    out = focusAudioCtx.createBuffer(ch, outLen, sr);
+  } catch (e) {
+    return buffer; // creation failed (e.g. invalid length) -> use original
+  }
+
+  const HALF_PI = Math.PI / 2;
+  for (let c = 0; c < ch; c++) {
+    const src = buffer.getChannelData(c);
+    const dst = out.getChannelData(c);
+
+    // Copy the bulk of the clip [0 .. outLen) verbatim.
+    dst.set(src.subarray(0, outLen));
+
+    // Crossfade the tail (last `fade` samples of the ORIGINAL clip) over the
+    // head (first `fade` samples of the OUTPUT) using equal-power curves.
+    for (let i = 0; i < fade; i++) {
+      const t = i / fade;             // 0 -> 1 across the crossfade
+      const fadeIn = Math.sin(t * HALF_PI);   // head ramps up
+      const fadeOut = Math.cos(t * HALF_PI);  // tail ramps down
+      const headSample = src[i];
+      const tailSample = src[outLen + i];     // == src[n - fade + i]
+      dst[i] = headSample * fadeIn + tailSample * fadeOut;
+    }
+  }
+  return out;
 }
 
 function startFocusNoise(btn) {

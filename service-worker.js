@@ -4,7 +4,7 @@
  * clients receive the update (the page shows an "update available" prompt).
  */
 
-const CACHE_VERSION = "dailies-v7";
+const CACHE_VERSION = "dailies-v9";
 
 // App shell: local files resolved relative to the SW scope.
 const PRECACHE_URLS = [
@@ -16,6 +16,7 @@ const PRECACHE_URLS = [
   "./google-drive.js",
   "./google-calendar.js",
   "./vendor/chart.umd.min.js",
+  "./audio/focus-loop.ogg",
   "./audio/focus-loop.mp3",
   "./fonts/fonts.css",
   "./fonts/inter-300.woff2",
